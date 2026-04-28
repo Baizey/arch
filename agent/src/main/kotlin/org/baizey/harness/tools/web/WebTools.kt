@@ -21,7 +21,7 @@ internal object WebTools {
         val webPageFetcher = HttpWebPageFetcher(httpClient)
         val searchApiHttpClient = SearchApiHttpClient(httpClient)
         val webContentSummarizer = CurrentModelContentSummarizer(
-            modelStrategy = { ModelSelection.current() }
+            modelStrategy = { ModelSelection.BEST_SMALL }
         )
         return listOf(
             SearchWebTool(
