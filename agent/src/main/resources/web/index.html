@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Agent Console</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="shell">
+    <nav class="view-tabs" role="tablist" aria-label="Console views">
+        <button id="agentTabButton" class="view-tab" type="button" role="tab" aria-selected="true">Agent</button>
+        <button id="filtersTabButton" class="view-tab" type="button" role="tab" aria-selected="false">Event Filters</button>
+        <button id="toolFiltersTabButton" class="view-tab" type="button" role="tab" aria-selected="false">Tool Filters</button>
+    </nav>
+
+    <main class="workspace">
+        <section id="agentView" class="view-panel">
+            <section class="panel stream-panel">
+                <div class="panel-header panel-header-large stream-header">
+                    <div>
+                        <h2>Arch</h2>
+                    </div>
+                </div>
+
+                <div id="stream" class="stream" aria-live="polite"></div>
+            </section>
+        </section>
+
+        <section id="filtersView" class="view-panel" hidden>
+            <section class="panel filters-panel">
+                <div class="panel-header panel-header-large">
+                    <div>
+                        <h2>Event Filters</h2>
+                        <p>Build saved stream display profiles and switch between them from the agent view.</p>
+                    </div>
+                </div>
+
+                <div class="filters-body">
+                    <div class="filters-toolbar">
+                        <label class="control control-card">
+                            <span class="control-label">Edit profile</span>
+                            <select id="filterEditorSelect"></select>
+                        </label>
+
+                        <label class="control control-card">
+                            <span class="control-label">New profile</span>
+                            <input id="newFilterProfileNameInput" type="text" placeholder="Concise profile name">
+                        </label>
+
+                        <button id="createFilterProfileButton" type="button">Create from selected</button>
+                    </div>
+
+                    <section class="filter-editor-card">
+                        <div class="filter-editor-header">
+                            <div>
+                                <span class="summary-label">Profile details</span>
+                                <strong id="filterEditorHeadline">Profile</strong>
+                                <p id="filterEditorHint"></p>
+                            </div>
+
+                            <div class="filter-editor-actions">
+                                <button id="saveFilterProfileButton" type="button">Save changes</button>
+                                <button id="deleteFilterProfileButton" class="ghost" type="button">Delete</button>
+                            </div>
+                        </div>
+
+                        <label class="field">
+                            <span class="field-label">Profile name</span>
+                            <input id="filterProfileNameInput" type="text">
+                        </label>
+
+                        <div id="filterRuleList" class="filter-rule-list"></div>
+                    </section>
+                </div>
+            </section>
+        </section>
+
+        <section id="toolFiltersView" class="view-panel" hidden>
+            <section class="panel filters-panel">
+                <div class="panel-header panel-header-large">
+                    <div>
+                        <h2>Tool Filters</h2>
+                        <p>Build saved tool-availability profiles and switch which built-in tools the agent can call.</p>
+                    </div>
+                </div>
+
+                <div class="filters-body">
+                    <div class="filters-toolbar">
+                        <label class="control control-card">
+                            <span class="control-label">Edit profile</span>
+                            <select id="toolFilterEditorSelect"></select>
+                        </label>
+
+                        <label class="control control-card">
+                            <span class="control-label">New profile</span>
+                            <input id="newToolFilterProfileNameInput" type="text" placeholder="Concise profile name">
+                        </label>
+
+                        <button id="createToolFilterProfileButton" type="button">Create from selected</button>
+                    </div>
+
+                    <section class="filter-editor-card">
+                        <div class="filter-editor-header">
+                            <div>
+                                <span class="summary-label">Profile details</span>
+                                <strong id="toolFilterEditorHeadline">Profile</strong>
+                                <p id="toolFilterEditorHint"></p>
+                            </div>
+
+                            <div class="filter-editor-actions">
+                                <button id="saveToolFilterProfileButton" type="button">Save changes</button>
+                                <button id="deleteToolFilterProfileButton" class="ghost" type="button">Delete</button>
+                            </div>
+                        </div>
+
+                        <label class="field">
+                            <span class="field-label">Profile name</span>
+                            <input id="toolFilterProfileNameInput" type="text">
+                        </label>
+
+                        <div id="toolFilterRuleList" class="filter-rule-list"></div>
+                    </section>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <section id="commandDeck" class="command-deck">
+        <div class="command-deck-top">
+            <section class="summary-grid">
+                <article id="sessionCard" class="summary-card summary-card-wide" data-state="idle">
+                    <span class="summary-label">Session</span>
+                    <strong id="statusHeadline">Ready</strong>
+                    <p id="statusSummary">Send a message to start the first run.</p>
+                </article>
+            </section>
+
+            <div class="controls" role="group" aria-label="Session controls">
+                <article id="contextCard" class="control control-card context-card" aria-live="polite">
+                    <div class="context-card-header">
+                        <span class="control-label">Context Used</span>
+                        <button id="clearContextButton" class="icon-button ghost" type="button" aria-label="Clear context" title="Clear context">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v8h-2V9zm4 0h2v8h-2V9zM7 9h2v8H7V9zm1 11h8a2 2 0 0 0 2-2V8H6v10a2 2 0 0 0 2 2z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <strong id="activeContextSizeValue">0k</strong>
+                </article>
+                <label class="control control-card model-control">
+                    <span class="control-label">Event Filter</span>
+                    <select id="filterProfileSelect"></select>
+                </label>
+                <label class="control control-card model-control">
+                    <span class="control-label">Tool Filter</span>
+                    <select id="toolFilterProfileSelect"></select>
+                </label>
+                <label class="control control-card model-control">
+                    <span class="control-label">Model</span>
+                    <select id="modelSelect"></select>
+                </label>
+            </div>
+        </div>
+
+        <form id="composer" class="composer">
+            <div class="composer-actions">
+                <button id="sendButton" type="submit" style="display: none">Send</button>
+            </div>
+            <label for="messageInput"></label>
+            <textarea id="messageInput" rows="3" placeholder="Say the next thing for the agent to do..."></textarea>
+        </form>
+    </section>
+</div>
+
+<template id="feedItemTemplate">
+    <article class="feed-item">
+        <button class="feed-marker" type="button" aria-label="Toggle event details"></button>
+        <div class="feed-card"></div>
+    </article>
+</template>
+
+<script src="app.js" defer></script>
+</body>
+</html>

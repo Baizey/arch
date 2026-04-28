@@ -1,0 +1,147 @@
+package org.baizey.harness.policy
+
+import org.baizey.harness.HarnessInteractionPort
+import org.baizey.harness.PermissionRequest
+import org.baizey.harness.policy.git.GitAccessType
+import org.baizey.harness.policy.git.GitPersistedPolicy
+import org.baizey.harness.policy.git.GitPolicy
+import org.baizey.harness.policy.git.GitPolicyResult
+import org.baizey.harness.policy.shared.PolicyLifetime
+import org.baizey.runtime.AuditLog
+import org.baizey.runtime.SystemPath
+import org.baizey.utils.IO.fromJson
+import org.baizey.utils.IO.toJson
+import java.nio.file.Files
+import kotlin.io.path.Path
+import kotlin.io.path.createParentDirectories
+import kotlin.io.path.notExists
+
+class GitPolicyLogic(
+    private val interactionPort: HarnessInteractionPort
+) {
+    private val activePolicies = mutableListOf<GitPolicy>()
+    private val inaccessibleDir = SystemPath.disallowBotDir.toAbsolutePath().normalize().toString()
+
+    fun evaluate(rawGitRootPath: String, accessType: GitAccessType): GitPolicyResult {
+        val cleanPath = Path(rawGitRootPath).toAbsolutePath().normalize()
+        val gitRoot = cleanPath.toString()
+
+        if (gitRoot.startsWith(inaccessibleDir)) {
+            return logAndReturn(
+                GitPolicyResult(
+                    gitRoot = gitRoot,
+                    isAllowed = false,
+                    reason = "This directory is inaccessible for you and has been denied by the user",
+                    lifetime = PolicyLifetime.FOREVER,
+                    accessTypes = listOf(accessType)
+                ),
+                decisionSource = AuditLog.DecisionSource.SYSTEM_INACCESSIBLE_DIRECTORY
+            )
+        }
+
+        val relevantPolicies = findRelevantPolicies(gitRoot, accessType)
+        if (relevantPolicies.isEmpty()) {
+            val newPolicy = createNewPolicy(gitRoot, accessType)
+            return logAndReturn(
+                GitPolicyResult(
+                    gitRoot = newPolicy.gitRoot,
+                    isAllowed = newPolicy.isAllowed,
+                    reason = newPolicy.reason,
+                    lifetime = newPolicy.lifetime,
+                    accessTypes = listOf(accessType)
+                ),
+                decisionSource = AuditLog.DecisionSource.USER_PROMPT,
+                lifetime = newPolicy.lifetime.name,
+                matchedGitRoot = newPolicy.gitRoot
+            )
+        }
+
+        val mostRelevantPolicy = relevantPolicies.first()
+        return logAndReturn(
+            GitPolicyResult(
+                gitRoot = mostRelevantPolicy.gitRoot,
+                isAllowed = mostRelevantPolicy.isAllowed,
+                reason = mostRelevantPolicy.reason,
+                lifetime = mostRelevantPolicy.lifetime,
+                accessTypes = listOf(accessType)
+            ),
+            decisionSource = AuditLog.DecisionSource.ACTIVE_POLICY_MATCH,
+            lifetime = mostRelevantPolicy.lifetime.name,
+            matchedGitRoot = mostRelevantPolicy.gitRoot
+        )
+    }
+
+    fun createNewPolicy(gitRoot: String, accessType: GitAccessType): GitPolicy {
+        val decision = interactionPort.requestPermission(
+            PermissionRequest(
+                path = gitRoot,
+                accessType = accessType.name,
+                scopeOptions = listOf(gitRoot)
+            )
+        )
+        val newPolicy = GitPolicy(
+            gitRoot = decision.scope,
+            accessTypes = listOf(accessType),
+            lifetime = decision.lifetime,
+            isAllowed = decision.isAllowed,
+            reason = decision.reason
+        )
+        if (newPolicy.lifetime != PolicyLifetime.ONCE) {
+            activePolicies.add(newPolicy)
+            if (newPolicy.lifetime == PolicyLifetime.FOREVER) {
+                updatePersistence()
+            }
+        }
+        return newPolicy
+    }
+
+    fun reloadFromPersistence(): List<GitPolicy> {
+        val path = SystemPath.gitPolicyFile
+        path.createParentDirectories()
+        if (path.notExists()) return listOf()
+        val stored = Files.readString(path).fromJson<GitPersistedPolicy>()
+        val current = activePolicies.filter { it.lifetime != PolicyLifetime.FOREVER }
+        activePolicies.clear()
+        activePolicies.addAll(stored.policies)
+        activePolicies.addAll(current)
+        return activePolicies.toList()
+    }
+
+    fun clearPolicies() {
+        activePolicies.clear()
+    }
+
+    private fun findRelevantPolicies(gitRoot: String, accessType: GitAccessType): List<GitPolicy> {
+        return activePolicies.filter { it.gitRoot == gitRoot && accessType in it.accessTypes }
+    }
+
+    private fun updatePersistence() {
+        val path = SystemPath.gitPolicyFile
+        path.createParentDirectories()
+
+        val savedPolicies = activePolicies.filter { it.lifetime == PolicyLifetime.FOREVER }
+        val json = GitPersistedPolicy(savedPolicies).toJson()
+        Files.writeString(path, json)
+    }
+
+    private fun logAndReturn(
+        result: GitPolicyResult,
+        decisionSource: AuditLog.DecisionSource,
+        lifetime: String = "SYSTEM",
+        matchedGitRoot: String = result.gitRoot
+    ): GitPolicyResult {
+        AuditLog.logPolicyDecision(
+            policyType = AuditLog.PolicyType.GIT,
+            subject = result.gitRoot,
+            isAllowed = result.isAllowed,
+            decisionSource = decisionSource,
+            context = mapOf(
+                "accessTypes" to result.accessTypes.joinToString(",") { it.name },
+                "lifetime" to lifetime,
+                "matchedGitRoot" to matchedGitRoot,
+                "reason" to result.reason
+            )
+        )
+        return result
+    }
+}
