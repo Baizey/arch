@@ -262,6 +262,89 @@ class SearchWebToolTest {
         assertTrue(result.contains("use fetch_website directly"), result)
     }
 
+    @Test
+    fun `returns actionable message when no results are found`() {
+        val tool = SearchWebTool(
+            searchEngine = object : WebSearchEngine {
+                override fun search(query: String, maxResults: Int): WebSearchResponse {
+                    return WebSearchResponse(
+                        provider = WebSearchProviderDescriptor("bing", "Bing"),
+                        results = emptyList()
+                    )
+                }
+            },
+            webPageFetcher = unusedPageFetcher(),
+            webContentSummarizer = unusedSummarizer()
+        )
+
+        val result = tool.searchWeb("kotlin release notes", shouldSummarizeWithAi = false)
+
+        assertTrue(result.contains("No search results found."), result)
+        assertTrue(result.contains("Provider: Bing"), result)
+        assertTrue(result.contains("If you know a URL already, use fetch_website directly."), result)
+    }
+
+    @Test
+    fun `fetches at most three search results for ai summary`() {
+        val fetchedUrls = mutableListOf<String>()
+        val tool = SearchWebTool(
+            searchEngine = object : WebSearchEngine {
+                override fun search(query: String, maxResults: Int): WebSearchResponse {
+                    return WebSearchResponse(
+                        provider = WebSearchProviderDescriptor("bing", "Bing"),
+                        results = (1..4).map { index ->
+                            WebSearchResult(
+                                title = "Result $index",
+                                url = "https://example.com/$index",
+                                snippet = "Snippet $index"
+                            )
+                        }
+                    )
+                }
+            },
+            webPageFetcher = object : WebPageFetcher {
+                override fun fetch(url: String): WebsiteDocument {
+                    fetchedUrls += url
+                    return WebsiteDocument(
+                        requestedUrl = url,
+                        resolvedUrl = url,
+                        statusCode = 200,
+                        contentType = "text/html",
+                        title = "Title",
+                        text = "content",
+                        originalCharacterCount = 7,
+                        sourceTruncated = false
+                    )
+                }
+            },
+            webContentSummarizer = object : ContentSummarizer {
+                override fun summarizeSearchResults(
+                    query: String,
+                    queryGoal: String?,
+                    searchResponse: WebSearchResponse,
+                    fetchedContent: List<FetchedSearchResultContent>
+                ): String = "summary only"
+
+                override fun summarizeWebsiteContent(
+                    page: WebsiteDocument,
+                    startChar: Int,
+                    endCharExclusive: Int,
+                    returnedText: String,
+                    returnedTextTruncated: Boolean,
+                    queryGoal: String?
+                ): String = error("not used")
+            }
+        )
+
+        val result = tool.searchWeb("kotlin release notes")
+
+        assertEquals("summary only", result)
+        assertEquals(
+            listOf("https://example.com/1", "https://example.com/2", "https://example.com/3"),
+            fetchedUrls
+        )
+    }
+
     private fun unusedPageFetcher(): WebPageFetcher = object : WebPageFetcher {
         override fun fetch(url: String): WebsiteDocument {
             error("page fetch should not be used")

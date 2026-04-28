@@ -218,6 +218,52 @@ class FetchWebsiteToolTest {
         assertTrue(result.contains("Use search_web to find alternate sources"), result)
     }
 
+    @Test
+    fun `uses the default summary goal when none is provided`() {
+        var capturedGoal: String? = null
+        val tool = FetchWebsiteTool(
+            webPageFetcher = object : WebPageFetcher {
+                override fun fetch(url: String): WebsiteDocument {
+                    return WebsiteDocument(
+                        requestedUrl = url,
+                        resolvedUrl = url,
+                        statusCode = 200,
+                        contentType = "text/html",
+                        title = null,
+                        text = "abcdef",
+                        originalCharacterCount = 6,
+                        sourceTruncated = false
+                    )
+                }
+            },
+            webContentSummarizer = object : ContentSummarizer {
+                override fun summarizeSearchResults(
+                    query: String,
+                    queryGoal: String?,
+                    searchResponse: WebSearchResponse,
+                    fetchedContent: List<FetchedSearchResultContent>
+                ): String = error("not used")
+
+                override fun summarizeWebsiteContent(
+                    page: WebsiteDocument,
+                    startChar: Int,
+                    endCharExclusive: Int,
+                    returnedText: String,
+                    returnedTextTruncated: Boolean,
+                    queryGoal: String?
+                ): String {
+                    capturedGoal = queryGoal
+                    return "summary only"
+                }
+            }
+        )
+
+        val result = tool.fetchWebsite("https://example.com")
+
+        assertEquals("summary only", result)
+        assertEquals("Summarize website content.", capturedGoal)
+    }
+
     private fun unusedSummarizer(): ContentSummarizer = object : ContentSummarizer {
         override fun summarizeSearchResults(
             query: String,

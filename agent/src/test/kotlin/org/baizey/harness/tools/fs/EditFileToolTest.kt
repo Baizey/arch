@@ -78,4 +78,20 @@ class EditFileToolTest : FsToolTestSupport() {
         assertTrue(result.contains("File: $file"), result)
         assertTrue(result.contains("Next steps:"), result)
     }
+
+    @Test
+    fun `normalizes expected old text and replacement text line endings`() {
+        val file = Files.writeString(tempDir.resolve("sample.txt"), "one\ntwo\nthree\nfour")
+
+        val result = tool.editFile(
+            file.toString(),
+            startLine = 1,
+            endLineExclusive = 3,
+            newText = "TWO\r\nUPDATED",
+            expectedOldText = "two\r\nthree"
+        )
+
+        assertTrue(result.contains("Inserted lines: 2"), result)
+        assertEquals(listOf("one", "TWO", "UPDATED", "four"), Files.readAllLines(file))
+    }
 }
