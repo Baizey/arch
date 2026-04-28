@@ -1208,7 +1208,6 @@ h2 {
 .command-deck-top {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 18px;
   align-items: stretch;
 }
 

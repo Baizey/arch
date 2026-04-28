@@ -10,8 +10,10 @@
 <div class="shell">
     <nav class="view-tabs" role="tablist" aria-label="Console views">
         <button id="agentTabButton" class="view-tab" type="button" role="tab" aria-selected="true">Agent</button>
-        <button id="filtersTabButton" class="view-tab" type="button" role="tab" aria-selected="false">Event Filters</button>
-        <button id="toolFiltersTabButton" class="view-tab" type="button" role="tab" aria-selected="false">Tool Filters</button>
+        <button id="filtersTabButton" class="view-tab" type="button" role="tab" aria-selected="false">Event Filters
+        </button>
+        <button id="toolFiltersTabButton" class="view-tab" type="button" role="tab" aria-selected="false">Tool Filters
+        </button>
     </nav>
 
     <main class="workspace">
@@ -81,7 +83,8 @@
                 <div class="panel-header panel-header-large">
                     <div>
                         <h2>Tool Filters</h2>
-                        <p>Build saved tool-availability profiles and switch which built-in tools the agent can call.</p>
+                        <p>Build saved tool-availability profiles and switch which built-in tools the agent can
+                            call.</p>
                     </div>
                 </div>
 
@@ -128,19 +131,17 @@
 
     <section id="commandDeck" class="command-deck">
         <div class="command-deck-top">
-            <section class="summary-grid">
+            <div class="controls" role="group" aria-label="Session controls">
                 <article id="sessionCard" class="summary-card summary-card-wide" data-state="idle">
                     <span class="summary-label">Session</span>
                     <strong id="statusHeadline">Ready</strong>
                     <p id="statusSummary">Send a message to start the first run.</p>
                 </article>
-            </section>
-
-            <div class="controls" role="group" aria-label="Session controls">
                 <article id="contextCard" class="control control-card context-card" aria-live="polite">
                     <div class="context-card-header">
                         <span class="control-label">Context Used</span>
-                        <button id="clearContextButton" class="icon-button ghost" type="button" aria-label="Clear context" title="Clear context">
+                        <button id="clearContextButton" class="icon-button ghost" type="button"
+                                aria-label="Clear context" title="Clear context">
                             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                                 <path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v8h-2V9zm4 0h2v8h-2V9zM7 9h2v8H7V9zm1 11h8a2 2 0 0 0 2-2V8H6v10a2 2 0 0 0 2 2z"/>
                             </svg>
