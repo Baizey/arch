@@ -1,4 +1,4 @@
-# small_agent
+# arch
 
 `small_agent` is a local Kotlin/JVM agent harness for running an Ollama-backed software assistant through a browser console. The app starts a small built-in HTTP server, serves the console UI, and routes model turns through LangChain4j with built-in tools for filesystem work, web search/fetching, git operations, and asking the user for decisions.
 
