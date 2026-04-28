@@ -1,6 +1,6 @@
-# small_agent
+# Arch
 
-`small_agent` is a local Kotlin/JVM agent harness for running an Ollama-backed software assistant through a browser console. The app starts a small built-in HTTP server, serves the console UI, and routes model turns through LangChain4j with built-in tools for filesystem work, web search/fetching, git operations, and asking the user for decisions.
+`Arch` is a local Kotlin/JVM agent harness for running an Ollama-backed software assistant through a browser console. The app starts a small built-in HTTP server, serves the console UI, and routes model turns through LangChain4j with built-in tools for filesystem work, web search/fetching, git operations, and asking the user for decisions.
 
 The default assistant is named `Arch`.
 
@@ -42,7 +42,7 @@ Edit `.env`:
 AGENT_CONSOLE_HOST=127.0.0.1
 AGENT_CONSOLE_PORT=8420
 OLLAMA_BASE_URL=http://localhost:11434
-SMALL_AGENT_HOME=
+ARCH_HOME=
 
 BING_SEARCH_API_KEY=
 BRAVE_SEARCH_API_KEY=
@@ -52,7 +52,7 @@ GOOGLE_SEARCH_ENGINE_ID=
 
 Notes:
 
-- `SMALL_AGENT_HOME` is optional. When empty, the app uses `~/.arch`.
+- `ARCH_HOME` is optional. When empty, the app uses `~/.arch`.
 - At least one of Brave, Bing, or Google search credentials is needed for web search. Website fetching still works without search credentials.
 - Gradle tasks currently require `.env` because `agent/build.gradle.kts` reads it during project configuration.
 
@@ -104,7 +104,7 @@ JUnit parallel execution is enabled in `agent/src/test/resources/junit-platform.
 
 ## Persistent Data
 
-Runtime state is stored under `SMALL_AGENT_HOME`, or `~/.arch` when `SMALL_AGENT_HOME` is empty.
+Runtime state is stored under `ARCH_HOME`, or `~/.arch` when `ARCH_HOME` is empty.
 
 Important paths:
 
@@ -123,7 +123,7 @@ The app treats `system/` under this home directory as protected agent state.
 Optional MCP servers are loaded from:
 
 ```text
-<SMALL_AGENT_HOME>/system/config/mcp_config.json
+<ARCH_HOME>/system/config/mcp_config.json
 ```
 
 Expected shape:

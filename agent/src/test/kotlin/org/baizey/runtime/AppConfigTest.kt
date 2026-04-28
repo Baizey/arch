@@ -37,7 +37,7 @@ class AppConfigTest {
             AGENT_CONSOLE_HOST=127.0.0.1
             AGENT_CONSOLE_PORT=8420
             OLLAMA_BASE_URL=http://localhost:11434
-            SMALL_AGENT_HOME=
+            ARCH_HOME=
             BING_SEARCH_API_KEY=
             BRAVE_SEARCH_API_KEY=
             GOOGLE_CUSTOM_SEARCH_API_KEY=

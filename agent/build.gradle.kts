@@ -94,7 +94,7 @@ private fun requiredIntDotEnv(name: String): Int {
 
 private val AGENT_HOST = requiredDotEnv("AGENT_CONSOLE_HOST")
 private val AGENT_PORT = requiredIntDotEnv("AGENT_CONSOLE_PORT")
-private val AGENT_SERVICE_ID = "small-agent-web-harness"
+private val AGENT_SERVICE_ID = "arch-web-harness"
 private val AGENT_REQUEST_TIMEOUT_MS = 1_000
 private val AGENT_SHUTDOWN_TIMEOUT_MS = 10_000L
 

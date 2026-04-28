@@ -44,7 +44,7 @@ internal data class AgentConfig(
                     baseUrl = values.requiredAbsoluteUri("OLLAMA_BASE_URL")
                 ),
                 storage = StorageConfig(
-                    homeDirectory = values.optionalPath("SMALL_AGENT_HOME") ?: defaultHomeDirectory
+                    homeDirectory = values.optionalPath("ARCH_HOME") ?: defaultHomeDirectory
                 ),
                 webSearch = WebSearchConfig(
                     bing = BingSearchConfig(

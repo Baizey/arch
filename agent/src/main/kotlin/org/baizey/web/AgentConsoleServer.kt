@@ -14,7 +14,7 @@ import org.baizey.runtime.ToolFilterProfileStore
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.system.exitProcess
 
-private const val SERVICE_ID = "small-agent-web-harness"
+private const val SERVICE_ID = "arch-web-harness"
 private const val SHUTDOWN_WAIT_MS = 5_000L
 
 internal class AgentConsoleServer(
