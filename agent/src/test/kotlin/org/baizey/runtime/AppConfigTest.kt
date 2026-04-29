@@ -49,7 +49,7 @@ class AppConfigTest {
 
         assertEquals("127.0.0.1", config.console.host)
         assertEquals(8420, config.console.port)
-        assertEquals("http://localhost:11434", config.providers.baseUrl)
+        assertEquals("http://localhost:11434", config.providers.ollama.baseUrl)
         assertNull(config.webSearch.bing.apiKey)
         assertNull(config.webSearch.brave.apiKey)
         assertNull(config.webSearch.google.apiKey)
@@ -71,7 +71,7 @@ class AppConfigTest {
 
         assertEquals("127.0.0.1", config.console.host)
         assertEquals(8420, config.console.port)
-        assertEquals("http://localhost:11434", config.providers.baseUrl)
+        assertEquals("http://localhost:11434", config.providers.ollama.baseUrl)
     }
 
     @Test
