@@ -9,20 +9,15 @@ import dev.langchain4j.model.ollama.OllamaChatModel
 import dev.langchain4j.service.AiServices
 import org.baizey.harness.HarnessContext
 import org.baizey.harness.tools.AgentTools
-import org.baizey.runtime.*
+import org.baizey.runtime.AgentRunInterruptedException
+import org.baizey.runtime.AppConfig
+import org.baizey.runtime.Assistant
+import org.baizey.runtime.McpConfig
+import org.baizey.runtime.SystemPath
+import org.baizey.runtime.ToolFilterProfile
 import org.baizey.utils.IO.fromJson
 import org.baizey.utils.IO.readIfExists
 import java.time.Duration
-
-
-class OpenAiAgentInstance : AgentInstance {
-    override fun chat(prompt: String): String? {
-        TODO("Not yet implemented")
-    }
-
-    // Hardcoded example
-    override fun modelName(): String = "gpt 5.4 [openai]"
-}
 
 class OllamaAgentInstance(
     private val modelName: String,
@@ -98,43 +93,3 @@ class OllamaAgentInstance(
     }
 
 }
-
-interface AgentInstance {
-    companion object {
-        fun create(config: AgentConfig, provider: AgentProviderConfig): AgentInstance {
-            when (provider) {
-                is OpenAiConfig -> TODO()
-                is OllamaConfig -> {
-                    return OllamaAgentInstance(
-                        config.modelName,
-                        config.systemPrompt,
-                        config.context,
-                        config.toolFilterProfile,
-                        config.listeners,
-                        config.shouldInterruptBeforeToolExecution
-                    )
-                }
-
-                else -> throw IllegalStateException("Unsupported provider type: ${provider::class.simpleName}")
-            }
-        }
-    }
-
-    fun chat(prompt: String): String?
-    fun modelName(): String
-}
-
-data class RuntimeResources(
-    val tools: List<Any>,
-    val mcpToolProvider: McpToolProvider?
-)
-
-data class AgentConfig(
-    val modelName: String,
-    val systemPrompt: String,
-    val tools: List<Any>,
-    val context: HarnessContext,
-    val toolFilterProfile: ToolFilterProfile,
-    val listeners: List<ChatModelListener>,
-    val shouldInterruptBeforeToolExecution: () -> Boolean = { false }
-)
