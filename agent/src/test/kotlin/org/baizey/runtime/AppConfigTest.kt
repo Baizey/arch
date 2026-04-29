@@ -37,6 +37,8 @@ class AppConfigTest {
             AGENT_CONSOLE_HOST=127.0.0.1
             AGENT_CONSOLE_PORT=8420
             OLLAMA_BASE_URL=http://localhost:11434
+            OPENAI_BASE_URL=https://api.openai.com/v1
+            OPENAI_API_KEY=test-key
             ARCH_HOME=
             BING_SEARCH_API_KEY=
             BRAVE_SEARCH_API_KEY=
@@ -50,6 +52,8 @@ class AppConfigTest {
         assertEquals("127.0.0.1", config.console.host)
         assertEquals(8420, config.console.port)
         assertEquals("http://localhost:11434", config.providers.ollama.baseUrl)
+        assertEquals("https://api.openai.com/v1", config.providers.openai.baseUrl)
+        assertEquals("test-key", config.providers.openai.apiKey)
         assertNull(config.webSearch.bing.apiKey)
         assertNull(config.webSearch.brave.apiKey)
         assertNull(config.webSearch.google.apiKey)

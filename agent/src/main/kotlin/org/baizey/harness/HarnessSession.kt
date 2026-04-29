@@ -51,12 +51,21 @@ data class HarnessActivityEntry(
 @Serializable
 data class HarnessSnapshot(
     val running: Boolean,
-    val model: String,
-    val supportedModels: List<String>,
+    val selectedModelId: String,
+    val modelLabel: String,
+    val supportedModels: List<HarnessSupportedModel>,
     val activeContextSize: Int,
     val messages: List<HarnessChatEntry>,
     val activity: List<HarnessActivityEntry>,
     val pendingMessages: List<PendingHarnessMessage>
+)
+
+@Serializable
+data class HarnessSupportedModel(
+    val id: String,
+    val name: String,
+    val provider: String,
+    val providerLabel: String
 )
 
 @Serializable
@@ -142,8 +151,16 @@ class HarnessSession(
         synchronized(lock) {
             return HarnessSnapshot(
                 running = running,
-                model = runtime.currentModel,
-                supportedModels = ModelSelection.supportedModels,
+                selectedModelId = ModelSelection.current.id,
+                modelLabel = runtime.currentModel,
+                supportedModels = ModelSelection.supportedModels.map { model ->
+                    HarnessSupportedModel(
+                        id = model.id,
+                        name = model.name,
+                        provider = model.provider.name.lowercase(),
+                        providerLabel = model.provider.displayName
+                    )
+                },
                 activeContextSize = activeContextSize,
                 messages = messages.toList(),
                 activity = activity.toList(),
@@ -259,21 +276,21 @@ class HarnessSession(
             is ModelSelectionResult.Changed -> {
                 recordActivity(
                     type = HarnessActivityType.CONTROL,
-                    title = "Model switched to ${selectionResult.modelName}",
+                    title = "Model switched to ${selectionResult.model.label}",
                     detail = ""
                 )
-                "Model switched to ${selectionResult.modelName}"
+                "Model switched to ${selectionResult.model.label}"
             }
 
             is ModelSelectionResult.Unchanged -> {
-                "Model already set to ${selectionResult.modelName}"
+                "Model already set to ${selectionResult.model.label}"
             }
 
             is ModelSelectionResult.Unknown -> {
                 "Unknown model '${selectionResult.requested}'. Available models: ${
                     selectionResult.supportedModels.joinToString(
                         ", "
-                    )
+                    ) { supportedModel -> supportedModel.label }
                 }"
             }
         }

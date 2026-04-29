@@ -16,15 +16,14 @@ class AgentRuntime(
     private val toolFilterRevisionProvider: () -> Int = { 0 },
     private val toolFilterProfileProvider: () -> ToolFilterProfile? = { null },
     private val reloadContextBeforeBuild: Boolean = true,
-    private val agentInstanceFactory: (AgentConfig, AgentProviderConfig) -> AgentInstance =
-        { config, provider -> AgentInstance.create(config, provider) }
+    private val agentInstanceFactory: (AgentConfig) -> AgentInstance = { AgentInstance.create(it) }
 ) : HarnessRuntime {
     private var activeModelRevision = ModelSelection.currentRevision()
     private var activeToolFilterRevision = toolFilterRevisionProvider()
     private var activeConfig = buildAgentConfig()
     private var agentInstance = buildAgentInstance(activeConfig)
 
-    override val currentModel: String get() = agentInstance.modelName()
+    override val currentModel: String get() = agentInstance.displayName()
 
     override val builtInToolCount: Int get() = activeConfig.tools.size
 
@@ -59,7 +58,8 @@ class AgentRuntime(
         val toolFilterProfile = toolFilterProfileProvider() ?: everythingToolFilterProfile()
         val tools = AgentTools.create(agentContext, toolFilterProfile)
         return AgentConfig(
-            modelName = ModelSelection.current(),
+            modelName = ModelSelection.current.name,
+            provider = ModelSelection.current.provider,
             systemPrompt = SystemPrompt.text(agentContext),
             tools = tools,
             context = agentContext,
@@ -69,9 +69,7 @@ class AgentRuntime(
         )
     }
 
-    private fun buildAgentInstance(config: AgentConfig): AgentInstance {
-        return agentInstanceFactory(config, AppConfig.providers.ollama)
-    }
+    private fun buildAgentInstance(config: AgentConfig): AgentInstance = agentInstanceFactory(config)
 
     private fun everythingToolFilterProfile(): ToolFilterProfile {
         return ToolFilterProfile(

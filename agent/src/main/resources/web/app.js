@@ -10,10 +10,12 @@
  * @typedef {{ id: string, groupId: string, label: string, description: string }} ToolFilterSubgroup
  * @typedef {{ id: string, toolName: string, groupId: string, subgroupId?: string, label: string, description: string }} ToolFilterTool
  * @typedef {{ groups: ToolFilterGroup[], subgroups: ToolFilterSubgroup[], tools: ToolFilterTool[] }} ToolFilterCatalog
+ * @typedef {{ id: string, name: string, provider: string, providerLabel: string }} SupportedModel
  * @typedef {{
  *   running: boolean,
- *   model: string,
- *   supportedModels: string[],
+ *   selectedModelId: string,
+ *   modelLabel: string,
+ *   supportedModels: SupportedModel[],
  *   activeContextSize: number,
  *   messages: HarnessMessage[],
  *   activity: HarnessEvent[],
@@ -238,7 +240,12 @@ function renderControls() {
   sessionCardEl.dataset.state = pendingCount > 0 ? "attention" : session.running ? "running" : "idle";
   contextCardEl.dataset.state = displayedActiveContextSize > 0 ? "tracked" : "empty";
   activeContextSizeValueEl.textContent = formatContextSizeInThousands(displayedActiveContextSize);
-  syncSelectOptions(modelSelectEl, session.supportedModels, (model) => model, (model) => model);
+  syncSelectOptions(
+    modelSelectEl,
+    session.supportedModels,
+    (model) => model.id,
+    (model) => `${model.name} (${model.providerLabel})`
+  );
   syncSelectOptions(
     filterProfileSelectEl,
     latestState.filterProfiles.profiles,
@@ -264,7 +271,8 @@ function renderControls() {
     (profile) => profile.name
   );
 
-  modelSelectEl.value = session.model;
+  modelSelectEl.value = session.selectedModelId;
+  modelSelectEl.disabled = session.supportedModels.length === 0;
   filterProfileSelectEl.value = latestState.filterProfiles.activeProfileId;
   filterEditorSelectEl.value = selectedFilterEditorProfileId;
   toolFilterProfileSelectEl.value = latestState.toolFilterProfiles.activeProfileId;
@@ -281,24 +289,16 @@ function renderSummary(feedItems) {
 
   if (pendingCount > 0) {
     statusHeadlineEl.textContent = "Input required";
-    setOptionalText(statusSummaryEl, `${formatPendingBreakdown(askCount, permissionCount)} waiting. Answer inline to continue.`);
     return;
   }
 
   if (session.running) {
-    statusHeadlineEl.textContent = "Run in progress";
-    setOptionalText(
-      statusSummaryEl,
-      queuedMessageCount > 0
-        ? `${pluralize(queuedMessageCount, "queued message")} waiting for the agent to become free.`
-        : "Send a chat message to stop at the next break, or keep following live output."
-    );
+    statusHeadlineEl.textContent = "Agent working";
     return;
   }
 
   if (queuedMessageCount > 0) {
     statusHeadlineEl.textContent = "Queued messages";
-    setOptionalText(statusSummaryEl, `${pluralize(queuedMessageCount, "queued message")} waiting to run.`);
     return;
   }
 

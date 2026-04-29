@@ -5,6 +5,7 @@ import kotlinx.serialization.json.*
 import org.baizey.harness.HarnessActivityEntry
 import org.baizey.harness.HarnessChatEntry
 import org.baizey.harness.HarnessSnapshot
+import org.baizey.harness.HarnessSupportedModel
 import org.baizey.harness.policy.shared.PolicyLifetime
 import org.baizey.runtime.ActivityFilterProfile
 import org.baizey.runtime.ActivityFilterProfileSnapshot
@@ -112,8 +113,9 @@ internal fun buildStateJson(
 internal fun HarnessSnapshot.toJson(): JsonObject {
     return buildJsonObject {
         putBoolean("running", running)
-        putString("model", model)
-        put("supportedModels", buildJsonArray { supportedModels.forEach { addString(it) } })
+        putString("selectedModelId", selectedModelId)
+        putString("modelLabel", modelLabel)
+        put("supportedModels", buildJsonArray { supportedModels.forEach { add(it.toJson()) } })
         putLong("activeContextSize", activeContextSize.toLong())
         put("messages", buildJsonArray { messages.forEach { add(it.toJson()) } })
         put("activity", buildJsonArray { activity.forEach { add(it.toJson()) } })
@@ -128,6 +130,15 @@ internal fun HarnessSnapshot.toJson(): JsonObject {
                 )
             }
         })
+    }
+}
+
+internal fun HarnessSupportedModel.toJson(): JsonObject {
+    return buildJsonObject {
+        putString("id", id)
+        putString("name", name)
+        putString("provider", provider)
+        putString("providerLabel", providerLabel)
     }
 }
 

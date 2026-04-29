@@ -20,6 +20,7 @@ repositories {
 
 dependencies {
     implementation("dev.langchain4j:langchain4j:1.13.0")
+    implementation("dev.langchain4j:langchain4j-open-ai:1.13.0")
     implementation("dev.langchain4j:langchain4j-ollama:1.13.0")
     implementation("dev.langchain4j:langchain4j-mcp:1.13.0-beta23")
     implementation("org.slf4j:slf4j-simple:2.0.17")
