@@ -87,7 +87,7 @@ class HarnessSession(
     runtimeFactory: (HarnessContext, () -> Boolean, () -> List<ChatModelListener>, () -> Int, () -> ToolFilterProfile?) -> HarnessRuntime =
         { toolContext, shouldInterruptBeforeToolExecution, listenersProvider, toolFilterRevisionProvider, toolFilterProfileProvider ->
             AgentRuntime(
-                toolContext = toolContext,
+                agentContext = toolContext,
                 shouldInterruptBeforeToolExecution = shouldInterruptBeforeToolExecution,
                 listenersProvider = listenersProvider,
                 toolFilterRevisionProvider = toolFilterRevisionProvider,

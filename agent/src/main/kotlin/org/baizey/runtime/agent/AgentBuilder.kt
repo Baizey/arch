@@ -1,4 +1,4 @@
-package org.baizey.runtime
+package org.baizey.runtime.agent
 
 import dev.langchain4j.mcp.McpToolProvider
 import dev.langchain4j.mcp.client.DefaultMcpClient
@@ -7,62 +7,47 @@ import dev.langchain4j.memory.chat.MessageWindowChatMemory
 import dev.langchain4j.model.chat.listener.ChatModelListener
 import dev.langchain4j.model.ollama.OllamaChatModel
 import dev.langchain4j.service.AiServices
-import org.baizey.commands.utils.ModelSelection
 import org.baizey.harness.HarnessContext
-import org.baizey.harness.HarnessRuntime
 import org.baizey.harness.tools.AgentTools
-import org.baizey.harness.SystemPrompt
+import org.baizey.runtime.*
 import org.baizey.utils.IO.fromJson
 import org.baizey.utils.IO.readIfExists
 import java.time.Duration
-import kotlin.collections.listOf
 
-class AgentRuntime(
+
+class OpenAiAgentInstance : AgentInstance {
+    override fun chat(prompt: String): String? {
+        TODO("Not yet implemented")
+    }
+
+    // Hardcoded example
+    override fun modelName(): String = "gpt 5.4 [openai]"
+}
+
+class OllamaAgentInstance(
+    private val modelName: String,
+    private val systemPrompt: String,
     private val agentContext: HarnessContext,
-    private val shouldInterruptBeforeToolExecution: () -> Boolean = { false },
-    private val listenersProvider: () -> List<ChatModelListener>,
-    private val toolFilterRevisionProvider: () -> Int = { 0 },
-    private val toolFilterProfileProvider: () -> ToolFilterProfile? = { null }
-) : HarnessRuntime {
+    private val toolFilterProfile: ToolFilterProfile,
+    private val listeners: List<ChatModelListener>,
+    private val interrupted: () -> Boolean
+) : AgentInstance {
     private var resources = prepareResources()
-    private var activeModelRevision = ModelSelection.currentRevision()
-    private var activeToolFilterRevision = toolFilterRevisionProvider()
     private var chatMemory = buildChatMemory()
-    private var assistant = buildAssistant(ModelSelection.current())
-
-    override val currentModel: String get() = ModelSelection.current()
-
-    override val builtInToolCount: Int get() = resources.tools.size
+    private var assistant = buildAssistant(modelName)
 
     override fun chat(prompt: String): String? = assistant.chat(prompt)
 
-    override fun resetConversation() {
-        resources = prepareResources()
-        chatMemory = buildChatMemory()
-        assistant = buildAssistant(ModelSelection.current())
-        activeModelRevision = ModelSelection.currentRevision()
-        activeToolFilterRevision = toolFilterRevisionProvider()
-    }
+    override fun modelName(): String = "$modelName [ollama]"
 
-    override fun refreshIfNeeded(): String? {
-        val modelChanged = activeModelRevision != ModelSelection.currentRevision()
-        val toolsChanged = activeToolFilterRevision != toolFilterRevisionProvider()
-        if (!modelChanged && !toolsChanged) return null
-
-        resources = prepareResources()
-        assistant = buildAssistant(ModelSelection.current())
-        activeModelRevision = ModelSelection.currentRevision()
-        activeToolFilterRevision = toolFilterRevisionProvider()
-        return ModelSelection.current()
-    }
-
+    private fun buildChatMemory() = MessageWindowChatMemory.builder().maxMessages(Int.MAX_VALUE).build()
     private fun buildAssistant(modelName: String): Assistant {
         val model = OllamaChatModel.builder()
             .baseUrl(AppConfig.providers.ollama.baseUrl)
             .modelName(modelName)
             .timeout(Duration.ofMinutes(2))
             .returnThinking(true)
-            .listeners(listenersProvider())
+            .listeners(listeners)
             .build()
 
         val builder = AiServices.builder(Assistant::class.java)
@@ -70,11 +55,11 @@ class AgentRuntime(
             .chatMemory(chatMemory)
             .tools(resources.tools)
             .beforeToolExecution {
-                if (shouldInterruptBeforeToolExecution()) {
+                if (interrupted()) {
                     throw AgentRunInterruptedException("Interrupted before tool execution.")
                 }
             }
-            .systemMessageProvider { _ -> SystemPrompt.text(agentContext) }
+            .systemMessageProvider { _ -> systemPrompt }
 
         if (resources.mcpToolProvider != null) {
             builder.toolProvider(resources.mcpToolProvider)
@@ -83,12 +68,10 @@ class AgentRuntime(
         return builder.build()
     }
 
-    private fun buildChatMemory() = MessageWindowChatMemory.builder().maxMessages(Int.MAX_VALUE).build()
-
     private fun prepareResources(): RuntimeResources {
         agentContext.reloadFromPersistence()
         val mcpConfig = SystemPath.mcpConfigFile.readIfExists()?.fromJson<McpConfig>() ?: McpConfig(mapOf())
-        val tools = AgentTools.create(agentContext, toolFilterProfileProvider())
+        val tools = AgentTools.create(agentContext, toolFilterProfile)
         val mcpClients = mcpConfig.servers.entries.map { (key, value) ->
             DefaultMcpClient.builder()
                 .key(key)
@@ -114,12 +97,44 @@ class AgentRuntime(
         )
     }
 
-    private data class RuntimeResources(
-        val tools: List<Any>,
-        val mcpToolProvider: McpToolProvider?
-    )
 }
 
-class AgentRunInterruptedException(
-    message: String
-) : RuntimeException(message)
+interface AgentInstance {
+    companion object {
+        fun create(config: AgentConfig, provider: AgentProviderConfig): AgentInstance {
+            when (provider) {
+                is OpenAiConfig -> TODO()
+                is OllamaConfig -> {
+                    return OllamaAgentInstance(
+                        config.modelName,
+                        config.systemPrompt,
+                        config.context,
+                        config.toolFilterProfile,
+                        config.listeners,
+                        config.shouldInterruptBeforeToolExecution
+                    )
+                }
+
+                else -> throw IllegalStateException("Unsupported provider type: ${provider::class.simpleName}")
+            }
+        }
+    }
+
+    fun chat(prompt: String): String?
+    fun modelName(): String
+}
+
+data class RuntimeResources(
+    val tools: List<Any>,
+    val mcpToolProvider: McpToolProvider?
+)
+
+data class AgentConfig(
+    val modelName: String,
+    val systemPrompt: String,
+    val tools: List<Any>,
+    val context: HarnessContext,
+    val toolFilterProfile: ToolFilterProfile,
+    val listeners: List<ChatModelListener>,
+    val shouldInterruptBeforeToolExecution: () -> Boolean = { false }
+)

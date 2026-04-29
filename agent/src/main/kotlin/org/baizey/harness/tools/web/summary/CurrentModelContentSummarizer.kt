@@ -102,7 +102,7 @@ private fun buildSummaryAssistant(modelName: String): SummaryAssistant {
     return AiServices.builder(SummaryAssistant::class.java)
         .chatModel(
             OllamaChatModel.builder()
-                .baseUrl(AppConfig.ollama.baseUrl)
+                .baseUrl(AppConfig.providers.ollama.baseUrl)
                 .modelName(modelName)
                 .timeout(Duration.ofMinutes(2))
                 .returnThinking(false)

@@ -45,11 +45,11 @@ class AppConfigTest {
             """.trimIndent()
         )
 
-        val config = AgentConfig.load(tempDir)
+        val config = AppConfigInstance.load(tempDir)
 
         assertEquals("127.0.0.1", config.console.host)
         assertEquals(8420, config.console.port)
-        assertEquals("http://localhost:11434", config.ollama.baseUrl)
+        assertEquals("http://localhost:11434", config.providers.baseUrl)
         assertNull(config.webSearch.bing.apiKey)
         assertNull(config.webSearch.brave.apiKey)
         assertNull(config.webSearch.google.apiKey)
@@ -67,11 +67,11 @@ class AppConfigTest {
         )
         val moduleDir = java.nio.file.Files.createDirectories(tempDir.resolve("agent"))
 
-        val config = AgentConfig.load(moduleDir)
+        val config = AppConfigInstance.load(moduleDir)
 
         assertEquals("127.0.0.1", config.console.host)
         assertEquals(8420, config.console.port)
-        assertEquals("http://localhost:11434", config.ollama.baseUrl)
+        assertEquals("http://localhost:11434", config.providers.baseUrl)
     }
 
     @Test
@@ -84,7 +84,7 @@ class AppConfigTest {
         )
 
         assertThrows(IllegalArgumentException::class.java) {
-            AgentConfig.load(tempDir)
+            AppConfigInstance.load(tempDir)
         }
     }
 
@@ -99,7 +99,7 @@ class AppConfigTest {
         )
 
         assertThrows(IllegalArgumentException::class.java) {
-            AgentConfig.load(tempDir)
+            AppConfigInstance.load(tempDir)
         }
     }
 
@@ -108,7 +108,7 @@ class AppConfigTest {
         val moduleDir = java.nio.file.Files.createDirectories(tempDir.resolve("agent"))
 
         assertThrows(IllegalArgumentException::class.java) {
-            AgentConfig.load(moduleDir)
+            AppConfigInstance.load(moduleDir)
         }
     }
 }

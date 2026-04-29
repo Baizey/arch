@@ -7,14 +7,14 @@ import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
 import kotlin.io.path.readLines
 
-internal object AppConfig {
-    private val config by lazy { AgentConfig.load() }
+object AppConfig {
+    private val config by lazy { AppConfigInstance.load() }
 
     val console: ConsoleConfig
         get() = config.console
 
-    val ollama: OllamaConfig
-        get() = config.ollama
+    val providers: ProviderConfig
+        get() = config.providers
 
     val storage: StorageConfig
         get() = config.storage
@@ -23,25 +23,31 @@ internal object AppConfig {
         get() = config.webSearch
 }
 
-internal data class AgentConfig(
+data class AppConfigInstance(
     val console: ConsoleConfig,
-    val ollama: OllamaConfig,
+    val providers: ProviderConfig,
     val storage: StorageConfig,
     val webSearch: WebSearchConfig
 ) {
     companion object {
         private val defaultHomeDirectory = Path(System.getProperty("user.home")).resolve(".arch")
 
-        fun load(workingDirectory: Path = Path(System.getProperty("user.dir"))): AgentConfig {
+        fun load(workingDirectory: Path = Path(System.getProperty("user.dir"))): AppConfigInstance {
             val values = DotEnvFile.loadFromWorkingDirectory(workingDirectory)
 
-            return AgentConfig(
+            return AppConfigInstance(
                 console = ConsoleConfig(
                     host = values.requiredString("AGENT_CONSOLE_HOST"),
                     port = values.requiredInt("AGENT_CONSOLE_PORT")
                 ),
-                ollama = OllamaConfig(
-                    baseUrl = values.requiredAbsoluteUri("OLLAMA_BASE_URL")
+                providers = ProviderConfig(
+                    ollama = OllamaConfig(
+                        baseUrl = values.optionalAbsoluteUri("OLLAMA_BASE_URL")
+                    ),
+                    openai = OpenAiConfig(
+                        baseUrl = values.optionalAbsoluteUri("OPENAI_BASE_URL"),
+                        apiKey = values.optionalString("OPENAI_API_KEY")
+                    )
                 ),
                 storage = StorageConfig(
                     homeDirectory = values.optionalPath("ARCH_HOME") ?: defaultHomeDirectory
@@ -63,7 +69,7 @@ internal data class AgentConfig(
     }
 }
 
-internal data class ConsoleConfig(
+data class ConsoleConfig(
     val host: String,
     val port: Int
 ) {
@@ -73,34 +79,41 @@ internal data class ConsoleConfig(
     }
 }
 
-internal data class OllamaConfig(
-    val baseUrl: String
-) {
-    init {
-        require(baseUrl.isNotBlank()) { "OLLAMA_BASE_URL cannot be blank." }
-        require(URI.create(baseUrl).scheme != null) { "OLLAMA_BASE_URL must be an absolute URI." }
-    }
-}
+data class ProviderConfig(
+    val ollama: OllamaConfig,
+    val openai: OpenAiConfig
+)
 
-internal data class StorageConfig(
+interface AgentProviderConfig
+
+data class OpenAiConfig(
+    val baseUrl: String?,
+    val apiKey: String?
+) : AgentProviderConfig
+
+data class OllamaConfig(
+    val baseUrl: String?
+) : AgentProviderConfig
+
+data class StorageConfig(
     val homeDirectory: Path
 )
 
-internal data class WebSearchConfig(
+data class WebSearchConfig(
     val bing: BingSearchConfig,
     val brave: BraveSearchConfig,
     val google: GoogleSearchConfig
 )
 
-internal data class BingSearchConfig(
+data class BingSearchConfig(
     val apiKey: String?
 )
 
-internal data class BraveSearchConfig(
+data class BraveSearchConfig(
     val apiKey: String?
 )
 
-internal data class GoogleSearchConfig(
+data class GoogleSearchConfig(
     val apiKey: String?,
     val searchEngineId: String?
 )
@@ -184,6 +197,14 @@ internal class DotEnvValues(
         val uri = URI.create(rawValue)
         require(uri.scheme != null) { "$name must be an absolute URI." }
         return uri.toString()
+    }
+
+    fun optionalAbsoluteUri(name: String): String? {
+        return optionalString(name)?.let { uri ->
+            val uri = URI.create(uri)
+            require(uri.scheme != null) { "$name must be an absolute URI." }
+            uri.toString()
+        }
     }
 }
 
