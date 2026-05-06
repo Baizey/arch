@@ -136,7 +136,7 @@ If the requested goal cannot be satisfied from the provided data, say what is mi
 Include relevant URLs when they materially help the next step.""",
                 tools = emptyList(),
                 context = context,
-                toolFilterProfile = ToolFilterProfileStore.noneProfile(),
+                toolFilterProfile = ToolFilterProfileStore.nothingProfile(),
                 listeners = emptyList(),
             )
         )

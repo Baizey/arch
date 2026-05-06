@@ -2,6 +2,8 @@ package org.baizey.runtime.eventfilter
 
 import org.baizey.runtime.ActivityFilterMode
 import org.baizey.runtime.ActivityFilterCategory
+import org.baizey.runtime.ActivityFilterProfile
+import org.baizey.runtime.ActivityFilterProfileSnapshot
 import org.baizey.runtime.ActivityFilterProfileStore
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -17,12 +19,19 @@ class ActivityFilterProfileStoreTest {
     fun `starts with built in profiles`() {
         val store = ActivityFilterProfileStore(tempDir.resolve("activity_filter_profiles.json"))
 
-        val snapshot = store.snapshot()
-
-        assertEquals(ActivityFilterProfileStore.EVERYTHING_PROFILE_ID, snapshot.activeProfileId)
         assertEquals(
-            listOf(ActivityFilterProfileStore.EVERYTHING_PROFILE_ID),
-            snapshot.profiles.filter { it.isBuiltIn }.map { it.id }
+            ActivityFilterProfileSnapshot(
+                activeProfileId = ActivityFilterProfileStore.EVERYTHING_PROFILE_ID,
+                profiles = listOf(
+                    ActivityFilterProfile(
+                        id = ActivityFilterProfileStore.EVERYTHING_PROFILE_ID,
+                        name = "Everything",
+                        isBuiltIn = true,
+                        rules = ActivityFilterCategory.entries.associateWith { ActivityFilterMode.FULL }
+                    )
+                )
+            ),
+            store.snapshot()
         )
     }
 
@@ -45,11 +54,7 @@ class ActivityFilterProfileStoreTest {
         store.selectProfile(created.id)
 
         val reloaded = ActivityFilterProfileStore(path).snapshot()
-        val persisted = reloaded.profiles.firstOrNull { it.id == created.id }
-
         assertEquals(created.id, reloaded.activeProfileId)
-        assertNotNull(persisted)
-        assertEquals(ActivityFilterMode.FULL, persisted!!.rules[ActivityFilterCategory.TOOL])
-        assertEquals(ActivityFilterMode.MINIFIED, persisted.rules[ActivityFilterCategory.THINKING])
+        assertEquals(updated, reloaded.profiles.firstOrNull { it.id == created.id })
     }
 }

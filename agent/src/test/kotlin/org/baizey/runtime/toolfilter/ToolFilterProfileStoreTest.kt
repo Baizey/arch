@@ -1,6 +1,9 @@
 package org.baizey.runtime.toolfilter
 
+import org.baizey.runtime.BuiltInToolCatalog
 import org.baizey.runtime.ToolFilterMode
+import org.baizey.runtime.ToolFilterProfile
+import org.baizey.runtime.ToolFilterProfileSnapshot
 import org.baizey.runtime.ToolFilterProfileStore
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -13,15 +16,46 @@ class ToolFilterProfileStoreTest {
     lateinit var tempDir: Path
 
     @Test
-    fun `starts with built in everything profile`() {
+    fun `starts with the expected built in profiles`() {
         val store = ToolFilterProfileStore(tempDir.resolve("tool_filter_profiles.json"))
 
-        val snapshot = store.snapshot()
-
-        assertEquals(ToolFilterProfileStore.EVERYTHING_PROFILE_ID, snapshot.activeProfileId)
         assertEquals(
-            listOf(ToolFilterProfileStore.EVERYTHING_PROFILE_ID),
-            snapshot.profiles.filter { it.isBuiltIn }.map { it.id }
+            ToolFilterProfileSnapshot(
+                activeProfileId = ToolFilterProfileStore.EVERYTHING_PROFILE_ID,
+                profiles = listOf(
+                    expectedProfile(
+                        id = ToolFilterProfileStore.EVERYTHING_PROFILE_ID,
+                        name = "Everything",
+                        enabledTargets = BuiltInToolCatalog.allRuleTargetIds()
+                    ),
+                    expectedProfile(
+                        id = ToolFilterProfileStore.NOTHING_PROFILE_ID,
+                        name = "Nothing",
+                        enabledTargets = emptySet()
+                    ),
+                    expectedProfile(
+                        id = ToolFilterProfileStore.WEB_ONLY_PROFILE_ID,
+                        name = "Web Only",
+                        enabledTargets = BuiltInToolCatalog.toolRuleTargetIdsForGroup("web").toSet()
+                    ),
+                    expectedProfile(
+                        id = ToolFilterProfileStore.READONLY_PROFILE_ID,
+                        name = "Read Only",
+                        enabledTargets = buildSet {
+                            addAll(BuiltInToolCatalog.toolRuleTargetIdsForSubgroup("fs-inspect"))
+                            addAll(BuiltInToolCatalog.toolRuleTargetIdsForSubgroup("fs-read"))
+                            addAll(BuiltInToolCatalog.toolRuleTargetIdsForGroup("web"))
+                            addAll(BuiltInToolCatalog.toolRuleTargetIdsForSubgroup("git-read"))
+                        }
+                    ),
+                    expectedProfile(
+                        id = ToolFilterProfileStore.FS_ONLY_PROFILE_ID,
+                        name = "Filesystem Only",
+                        enabledTargets = BuiltInToolCatalog.toolRuleTargetIdsForGroup("fs").toSet()
+                    )
+                )
+            ),
+            store.snapshot()
         )
     }
 
@@ -45,11 +79,25 @@ class ToolFilterProfileStoreTest {
         store.selectProfile(created.id)
 
         val reloaded = ToolFilterProfileStore(path).snapshot()
-        val persisted = reloaded.profiles.firstOrNull { it.id == created.id }
-
         assertEquals(created.id, reloaded.activeProfileId)
-        assertNotNull(persisted)
-        assertEquals(ToolFilterMode.ENABLED, persisted!!.rules["tool:list_directory"])
-        assertEquals(ToolFilterMode.ENABLED, persisted.rules["tool:read_file"])
+        assertEquals(
+            updated,
+            reloaded.profiles.firstOrNull { it.id == created.id }
+        )
+    }
+
+    private fun expectedProfile(
+        id: String,
+        name: String,
+        enabledTargets: Set<String>
+    ): ToolFilterProfile {
+        return ToolFilterProfile(
+            id = id,
+            name = name,
+            isBuiltIn = true,
+            rules = BuiltInToolCatalog.allRuleTargetIds().associateWith { ruleTarget ->
+                if (ruleTarget in enabledTargets) ToolFilterMode.ENABLED else ToolFilterMode.DISABLED
+            }
+        )
     }
 }

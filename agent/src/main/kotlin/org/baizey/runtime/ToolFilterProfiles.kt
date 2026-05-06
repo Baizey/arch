@@ -21,16 +21,7 @@ data class ToolFilterProfile(
     val name: String,
     val isBuiltIn: Boolean,
     val rules: Map<String, ToolFilterMode>
-) {
-    companion object {
-        val NONE: ToolFilterProfile = ToolFilterProfile(
-            id = "none",
-            name = "None",
-            isBuiltIn = true,
-            rules = emptyMap()
-        )
-    }
-}
+)
 
 @Serializable
 data class ToolFilterProfilePersistence(
@@ -76,7 +67,13 @@ internal class ToolFilterProfileStore(
 ) {
     private val lock = Any()
     private val customProfiles = mutableListOf<ToolFilterProfile>()
-    private val builtInProfiles = listOf(everythingProfile(), noneProfile())
+    private val builtInProfiles = listOf(
+        everythingProfile(),
+        nothingProfile(),
+        webOnlyProfile(),
+        readonlyProfile(),
+        fsOnlyProfile()
+    )
 
     private var activeProfileId = EVERYTHING_PROFILE_ID
 
@@ -224,26 +221,66 @@ internal class ToolFilterProfileStore(
 
     companion object {
         const val EVERYTHING_PROFILE_ID = "everything"
-        const val NONE_PROFILE_ID = "none"
+        const val NOTHING_PROFILE_ID = "nothing"
+        const val WEB_ONLY_PROFILE_ID = "web-only"
+        const val READONLY_PROFILE_ID = "readonly"
+        const val FS_ONLY_PROFILE_ID = "fs-only"
 
         fun everythingProfile(): ToolFilterProfile {
-            val knownIds = BuiltInToolCatalog.allRuleTargetIds()
             return ToolFilterProfile(
                 id = EVERYTHING_PROFILE_ID,
                 name = "Everything",
                 isBuiltIn = true,
-                rules = knownIds.associateWith { ToolFilterMode.ENABLED }
+                rules = rulesWithEnabledTargets(BuiltInToolCatalog.allRuleTargetIds())
             )
         }
 
-        fun noneProfile(): ToolFilterProfile {
-            val knownIds = BuiltInToolCatalog.allRuleTargetIds()
+        fun nothingProfile(): ToolFilterProfile {
             return ToolFilterProfile(
-                id = NONE_PROFILE_ID,
-                name = "None",
+                id = NOTHING_PROFILE_ID,
+                name = "Nothing",
                 isBuiltIn = true,
-                rules = knownIds.associateWith { ToolFilterMode.DISABLED }
+                rules = rulesWithEnabledTargets(emptySet())
             )
+        }
+
+        fun webOnlyProfile(): ToolFilterProfile {
+            return ToolFilterProfile(
+                id = WEB_ONLY_PROFILE_ID,
+                name = "Web Only",
+                isBuiltIn = true,
+                rules = rulesWithEnabledTargets(BuiltInToolCatalog.toolRuleTargetIdsForGroup("web").toSet())
+            )
+        }
+
+        fun readonlyProfile(): ToolFilterProfile {
+            val enabledTargets = buildSet {
+                addAll(BuiltInToolCatalog.toolRuleTargetIdsForSubgroup("fs-inspect"))
+                addAll(BuiltInToolCatalog.toolRuleTargetIdsForSubgroup("fs-read"))
+                addAll(BuiltInToolCatalog.toolRuleTargetIdsForGroup("web"))
+                addAll(BuiltInToolCatalog.toolRuleTargetIdsForSubgroup("git-read"))
+            }
+            return ToolFilterProfile(
+                id = READONLY_PROFILE_ID,
+                name = "Read Only",
+                isBuiltIn = true,
+                rules = rulesWithEnabledTargets(enabledTargets)
+            )
+        }
+
+        fun fsOnlyProfile(): ToolFilterProfile {
+            return ToolFilterProfile(
+                id = FS_ONLY_PROFILE_ID,
+                name = "Filesystem Only",
+                isBuiltIn = true,
+                rules = rulesWithEnabledTargets(BuiltInToolCatalog.toolRuleTargetIdsForGroup("fs").toSet())
+            )
+        }
+
+        private fun rulesWithEnabledTargets(enabledTargets: Set<String>): Map<String, ToolFilterMode> {
+            return BuiltInToolCatalog.allRuleTargetIds().associateWith { ruleTarget ->
+                if (ruleTarget in enabledTargets) ToolFilterMode.ENABLED else ToolFilterMode.DISABLED
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 package org.baizey.harness.tools.search.providers.bing
 
+import org.baizey.harness.tools.search.WebSearchResult
 import org.baizey.utils.IO.fromJson
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -23,8 +24,15 @@ class BingWebSearchResponseTest {
 
         val results = response.toSearchResults(maxResults = 5)
 
-        assertEquals("Kotlin Releases", results.single().title)
-        assertEquals("https://kotlinlang.org/docs/releases.html", results.single().url)
-        assertEquals("Latest Kotlin release notes.", results.single().snippet)
+        assertEquals(
+            listOf(
+                WebSearchResult(
+                    title = "Kotlin Releases",
+                    url = "https://kotlinlang.org/docs/releases.html",
+                    snippet = "Latest Kotlin release notes."
+                )
+            ),
+            results
+        )
     }
 }

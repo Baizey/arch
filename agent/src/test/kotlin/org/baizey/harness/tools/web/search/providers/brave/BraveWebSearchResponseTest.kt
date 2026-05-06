@@ -1,5 +1,6 @@
 package org.baizey.harness.tools.search.providers.brave
 
+import org.baizey.harness.tools.search.WebSearchResult
 import org.baizey.harness.tools.web.search.providers.brave.BraveWebSearchResponse
 import org.baizey.harness.tools.web.search.providers.brave.toSearchResults
 import org.baizey.utils.IO.fromJson
@@ -26,8 +27,15 @@ class BraveWebSearchResponseTest {
 
         val results = response.toSearchResults(maxResults = 5)
 
-        assertEquals("Kotlin Releases", results.single().title)
-        assertEquals("https://kotlinlang.org/docs/releases.html", results.single().url)
-        assertEquals("Latest Kotlin release notes. Stable releases and changelogs.", results.single().snippet)
+        assertEquals(
+            listOf(
+                WebSearchResult(
+                    title = "Kotlin Releases",
+                    url = "https://kotlinlang.org/docs/releases.html",
+                    snippet = "Latest Kotlin release notes. Stable releases and changelogs."
+                )
+            ),
+            results
+        )
     }
 }
