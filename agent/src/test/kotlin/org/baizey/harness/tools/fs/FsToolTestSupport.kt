@@ -23,7 +23,7 @@ abstract class FsToolTestSupport {
     }
 
     protected val toolContext = HarnessContext(interactionPort)
-    protected val pathPolicyLogic get() = toolContext.pathPolicyLogic
+    protected val pathPolicyLogic get() = toolContext.userPathPolicyLogic
     protected val shellPolicyLogic get() = toolContext.shellPolicyLogic
 
     @BeforeEach

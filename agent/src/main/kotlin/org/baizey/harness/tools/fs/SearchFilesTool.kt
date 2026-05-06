@@ -2,7 +2,7 @@ package org.baizey.harness.tools.fs
 
 import dev.langchain4j.agent.tool.P
 import dev.langchain4j.agent.tool.Tool
-import org.baizey.harness.policy.PathPolicyLogic
+import org.baizey.harness.policy.UserPathPolicyLogic
 import org.baizey.harness.policy.path.FsAccessType.READ
 import org.baizey.runtime.ErrorLog
 import org.baizey.utils.IO.canReadAsText
@@ -13,7 +13,7 @@ import kotlin.io.path.isRegularFile
 import kotlin.io.path.notExists
 
 class SearchFilesTool(
-    private val pathPolicyLogic: PathPolicyLogic
+    private val userPathPolicyLogic: UserPathPolicyLogic
 ) {
     @Tool(
         name = "search_files",
@@ -54,7 +54,7 @@ Example: search_files(path="C:/repo", query="PathPolicyLogic", glob="*.kt")"""]
         if (actualMaxMatches <= 0) return "maxMatches must be greater than 0"
         if (actualContextLines < 0) return "contextLines must be at least 0"
 
-        pathPolicyLogic.evaluate(normalizedPath.toString(), READ).toDenyReasonOrNull()?.let { return it }
+        userPathPolicyLogic.evaluate(normalizedPath.toString(), READ).toDenyReasonOrNull()?.let { return it }
         val matcher = try {
             actualQuery?.let { buildMatcher(it, actualRegex, actualIgnoreCase) }
         } catch (_: IllegalArgumentException) {

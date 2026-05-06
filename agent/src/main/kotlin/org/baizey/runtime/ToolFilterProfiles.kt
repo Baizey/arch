@@ -21,7 +21,16 @@ data class ToolFilterProfile(
     val name: String,
     val isBuiltIn: Boolean,
     val rules: Map<String, ToolFilterMode>
-)
+) {
+    companion object {
+        val NONE: ToolFilterProfile = ToolFilterProfile(
+            id = "none",
+            name = "None",
+            isBuiltIn = true,
+            rules = emptyMap()
+        )
+    }
+}
 
 @Serializable
 data class ToolFilterProfilePersistence(
@@ -67,7 +76,7 @@ internal class ToolFilterProfileStore(
 ) {
     private val lock = Any()
     private val customProfiles = mutableListOf<ToolFilterProfile>()
-    private val builtInProfiles = listOf(everythingProfile())
+    private val builtInProfiles = listOf(everythingProfile(), noneProfile())
 
     private var activeProfileId = EVERYTHING_PROFILE_ID
 
@@ -110,7 +119,8 @@ internal class ToolFilterProfileStore(
         }
 
         synchronized(lock) {
-            val baseProfile = findProfile(baseProfileId) ?: findProfile(normalizedActiveProfileId()) ?: everythingProfile()
+            val baseProfile =
+                findProfile(baseProfileId) ?: findProfile(normalizedActiveProfileId()) ?: everythingProfile()
             val profile = ToolFilterProfile(
                 id = "custom-${UUID.randomUUID()}",
                 name = trimmedName,
@@ -207,23 +217,33 @@ internal class ToolFilterProfileStore(
         Files.writeString(path, stored.toJson())
     }
 
-    private fun everythingProfile(): ToolFilterProfile {
-        return ToolFilterProfile(
-            id = EVERYTHING_PROFILE_ID,
-            name = "Everything",
-            isBuiltIn = true,
-            rules = normalizeRules(emptyMap())
-        )
-    }
-
     private fun normalizeRules(input: Map<String, ToolFilterMode>): Map<String, ToolFilterMode> {
         val knownIds = BuiltInToolCatalog.allRuleTargetIds()
-        return knownIds.associateWith { ruleTargetId ->
-            input[ruleTargetId] ?: ToolFilterMode.ENABLED
-        }
+        return knownIds.associateWith { input[it] ?: ToolFilterMode.ENABLED }
     }
 
     companion object {
         const val EVERYTHING_PROFILE_ID = "everything"
+        const val NONE_PROFILE_ID = "none"
+
+        fun everythingProfile(): ToolFilterProfile {
+            val knownIds = BuiltInToolCatalog.allRuleTargetIds()
+            return ToolFilterProfile(
+                id = EVERYTHING_PROFILE_ID,
+                name = "Everything",
+                isBuiltIn = true,
+                rules = knownIds.associateWith { ToolFilterMode.ENABLED }
+            )
+        }
+
+        fun noneProfile(): ToolFilterProfile {
+            val knownIds = BuiltInToolCatalog.allRuleTargetIds()
+            return ToolFilterProfile(
+                id = NONE_PROFILE_ID,
+                name = "None",
+                isBuiltIn = true,
+                rules = knownIds.associateWith { ToolFilterMode.DISABLED }
+            )
+        }
     }
 }

@@ -1,17 +1,17 @@
 package org.baizey.harness
 
-import org.baizey.harness.policy.PathPolicyLogic
-import org.baizey.harness.policy.GitPolicyLogic
+import org.baizey.harness.policy.UserPathPolicyLogic
+import org.baizey.harness.policy.UserGitPolicyLogic
 
 class HarnessContext(
     val interactionPort: HarnessInteractionPort
 ) {
-    val pathPolicyLogic: PathPolicyLogic = PathPolicyLogic(interactionPort)
-    val gitPolicyLogic: GitPolicyLogic = GitPolicyLogic(interactionPort)
+    val userPathPolicyLogic: UserPathPolicyLogic = UserPathPolicyLogic(interactionPort)
+    val gitPolicyLogic: UserGitPolicyLogic = UserGitPolicyLogic(interactionPort)
 
 
     fun reloadFromPersistence() {
-        pathPolicyLogic.reloadFromPersistence()
+        userPathPolicyLogic.reloadFromPersistence()
         gitPolicyLogic.reloadFromPersistence()
     }
 }

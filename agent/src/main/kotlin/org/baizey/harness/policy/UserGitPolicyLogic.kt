@@ -16,13 +16,13 @@ import kotlin.io.path.Path
 import kotlin.io.path.createParentDirectories
 import kotlin.io.path.notExists
 
-class GitPolicyLogic(
+class UserGitPolicyLogic(
     private val interactionPort: HarnessInteractionPort
-) {
+) : org.baizey.harness.policy.GitPolicy {
     private val activePolicies = mutableListOf<GitPolicy>()
     private val inaccessibleDir = SystemPath.disallowBotDir.toAbsolutePath().normalize().toString()
 
-    fun evaluate(rawGitRootPath: String, accessType: GitAccessType): GitPolicyResult {
+    override fun evaluate(rawGitRootPath: String, accessType: GitAccessType): GitPolicyResult {
         val cleanPath = Path(rawGitRootPath).toAbsolutePath().normalize()
         val gitRoot = cleanPath.toString()
 
@@ -69,6 +69,10 @@ class GitPolicyLogic(
             lifetime = mostRelevantPolicy.lifetime.name,
             matchedGitRoot = mostRelevantPolicy.gitRoot
         )
+    }
+
+    override fun renderAgentPolicySummary(): String {
+        TODO("Not yet implemented")
     }
 
     fun createNewPolicy(gitRoot: String, accessType: GitAccessType): GitPolicy {

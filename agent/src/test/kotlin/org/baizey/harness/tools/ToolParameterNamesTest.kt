@@ -63,7 +63,7 @@ class ToolParameterNamesTest {
 
     @Test
     fun `read file tool specification exposes the intended description and parameter names`() {
-        val tool = ReadFileTool(toolContext.pathPolicyLogic)
+        val tool = ReadFileTool(toolContext.userPathPolicyLogic)
         val specification = ToolSpecifications.toolSpecificationsFrom(tool)
             .single { it.name() == "read_file" }
 
@@ -80,7 +80,7 @@ class ToolParameterNamesTest {
 
     @Test
     fun `search files tool specification documents optional query behavior`() {
-        val tool = SearchFilesTool(toolContext.pathPolicyLogic)
+        val tool = SearchFilesTool(toolContext.userPathPolicyLogic)
         val specification = ToolSpecifications.toolSpecificationsFrom(tool)
             .single { it.name() == "search_files" }
 
@@ -104,7 +104,7 @@ class ToolParameterNamesTest {
 
     @Test
     fun `inspect path access tool exposes the intended description and parameter name`() {
-        val tool = InspectPathAccessTool(toolContext.pathPolicyLogic)
+        val tool = InspectPathAccessTool(toolContext.userPathPolicyLogic)
         val specification = ToolSpecifications.toolSpecificationsFrom(tool)
             .single { it.name() == "inspect_path_access" }
 

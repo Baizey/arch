@@ -20,13 +20,13 @@ import kotlin.io.path.Path
 import kotlin.io.path.createParentDirectories
 import kotlin.io.path.notExists
 
-class PathPolicyLogic(
+class UserPathPolicyLogic(
     private val interactionPort: HarnessInteractionPort
-) {
+) : org.baizey.harness.policy.PathPolicy {
     private val activePolicies = mutableListOf<PathPolicy>()
     private val inaccessibleDir = SystemPath.disallowBotDir.toAbsolutePath().normalize().toString()
 
-    fun inspectPath(rawFilePath: String): PathAccessInspection {
+    override fun inspectPath(rawFilePath: String): PathAccessInspection {
         val cleanPath = Path(rawFilePath).toAbsolutePath().normalize()
         val path = cleanPath.toString()
         return PathAccessInspection(
@@ -35,7 +35,7 @@ class PathPolicyLogic(
         )
     }
 
-    fun renderAgentPolicySummary(): String {
+    override fun renderAgentPolicySummary(): String {
         val explicitAllowPolicies = activePolicies
             .filter { it.isAllowed }
             .sortedWith(compareBy<PathPolicy> { it.pattern.lowercase() }.thenBy { accessTypesLabel(it.accessTypes) })
@@ -68,7 +68,7 @@ class PathPolicyLogic(
         }
     }
 
-    fun evaluate(rawFilePath: String, accessType: FsAccessType): PathPolicyResult {
+    override fun evaluate(rawFilePath: String, accessType: FsAccessType): PathPolicyResult {
         val cleanPath = Path(rawFilePath).toAbsolutePath().normalize()
         val path = cleanPath.toString()
 

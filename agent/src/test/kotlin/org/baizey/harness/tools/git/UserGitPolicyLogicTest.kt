@@ -5,7 +5,7 @@ import org.baizey.harness.HarnessInteractionPort
 import org.baizey.harness.PermissionDecision
 import org.baizey.harness.PermissionRequest
 import org.baizey.harness.policy.git.GitAccessType
-import org.baizey.harness.policy.GitPolicyLogic
+import org.baizey.harness.policy.UserGitPolicyLogic
 import org.baizey.harness.policy.shared.PolicyLifetime
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -14,7 +14,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 
-class GitPolicyLogicTest {
+class UserGitPolicyLogicTest {
     private var permissionDecisionProvider: (PermissionRequest) -> PermissionDecision = { request ->
         PermissionDecision(
             isAllowed = false,
@@ -40,7 +40,7 @@ class GitPolicyLogicTest {
         }
     }
 
-    private val tool = GitPolicyLogic(interactionPort)
+    private val tool = UserGitPolicyLogic(interactionPort)
 
     @TempDir
     lateinit var tempDir: Path

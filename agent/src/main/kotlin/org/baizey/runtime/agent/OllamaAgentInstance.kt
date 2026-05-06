@@ -14,8 +14,8 @@ import java.time.Duration
 class OllamaAgentInstance(
     override val modelName: String,
     private val systemPrompt: String,
-    private val agentContext: HarnessContext,
-    private val toolFilterProfile: ToolFilterProfile,
+    agentContext: HarnessContext,
+    toolFilterProfile: ToolFilterProfile,
     private val listeners: List<ChatModelListener>,
     private val interrupted: () -> Boolean,
 ) : AgentInstance {

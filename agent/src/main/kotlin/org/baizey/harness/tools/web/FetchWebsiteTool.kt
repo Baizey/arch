@@ -97,18 +97,6 @@ Example: fetch_website(url="https://kotlinlang.org", startChar=0, maxCharacters=
         )
     }
 
-    private fun buildFetchFailureResponse(url: String, exception: Exception): String {
-        return buildString {
-            appendLine("Website fetch failed.")
-            appendLine("Requested URL: $url")
-            appendLine("Reason: ${exception.message ?: exception::class.java.simpleName}")
-            appendLine("Next steps:")
-            appendLine("- Retry fetch_website if the URL is likely correct.")
-            appendLine("- Use search_web to find alternate sources or the canonical URL.")
-            appendLine("- Check whether the site blocks automated requests or returned an unsupported format.")
-        }.trimEnd()
-    }
-
     private fun buildSummaryFallbackResponse(
         page: org.baizey.harness.tools.fetch.WebsiteDocument,
         actualStartChar: Int,
@@ -171,5 +159,17 @@ Example: fetch_website(url="https://kotlinlang.org", startChar=0, maxCharacters=
                 appendLine("Source truncated: true")
             }
         }
+    }
+
+    private fun buildFetchFailureResponse(url: String, exception: Exception): String {
+        return buildString {
+            appendLine("Website fetch failed.")
+            appendLine("Requested URL: $url")
+            appendLine("Reason: ${exception.message ?: exception::class.java.simpleName}")
+            appendLine("Next steps:")
+            appendLine("- Retry fetch_website if the URL is likely correct.")
+            appendLine("- Use search_web to find alternate sources or the canonical URL.")
+            appendLine("- Check whether the site blocks automated requests or returned an unsupported format.")
+        }.trimEnd()
     }
 }

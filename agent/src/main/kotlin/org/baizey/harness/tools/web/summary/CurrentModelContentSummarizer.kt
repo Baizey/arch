@@ -1,23 +1,16 @@
-package org.baizey.harness.tools.summary
+package org.baizey.harness.tools.web.summary
 
-import dev.langchain4j.model.ollama.OllamaChatModel
-import dev.langchain4j.service.AiServices
+import org.baizey.commands.utils.ModelSelection
+import org.baizey.harness.HarnessContext
 import org.baizey.harness.tools.fetch.WebsiteDocument
 import org.baizey.harness.tools.search.FetchedSearchResultContent
 import org.baizey.harness.tools.search.WebSearchResponse
-import org.baizey.harness.tools.web.summary.ContentSummarizer
-import org.baizey.harness.tools.web.summary.SummaryModelStrategy
-import org.baizey.harness.tools.web.summary.SummaryAssistant
-import org.baizey.runtime.AppConfig
-import java.time.Duration
-import java.util.concurrent.ConcurrentHashMap
+import org.baizey.runtime.ToolFilterProfileStore
+import org.baizey.runtime.agent.AgentConfig
+import org.baizey.runtime.agent.AgentInstance
+import org.baizey.runtime.agent.ProviderType
 
-internal class CurrentModelContentSummarizer(
-    private val modelStrategy: SummaryModelStrategy,
-    private val assistantFactory: (String) -> SummaryAssistant = ::buildSummaryAssistant
-) : ContentSummarizer {
-    private val assistantsByModel = ConcurrentHashMap<String, SummaryAssistant>()
-
+internal class CurrentModelContentSummarizer : ContentSummarizer {
     override fun summarizeSearchResults(
         query: String,
         queryGoal: String?,
@@ -56,7 +49,7 @@ internal class CurrentModelContentSummarizer(
                 }
             }
         }
-        return assistantForCurrentModel().summarize(prompt).trim()
+        return chat(prompt)
     }
 
     override fun summarizeWebsiteContent(
@@ -89,32 +82,35 @@ internal class CurrentModelContentSummarizer(
             appendLine("Fetched content:")
             append(returnedText.ifBlank { "<empty>" })
         }
-        return assistantForCurrentModel().summarize(prompt).trim()
+        return chat(prompt)
     }
 
-    private fun assistantForCurrentModel(): SummaryAssistant {
-        val modelName = modelStrategy.currentModelName()
-        return assistantsByModel.computeIfAbsent(modelName, assistantFactory)
+    private fun chat(prompt: String): String {
+        val agent = getAgent()
+        var response = agent.chat(prompt)
+        while (response.isNullOrBlank() || response == "null") {
+            response = agent.chat("Please provide your response, or continue to ponder")
+        }
+        return response
     }
-}
 
-private fun buildSummaryAssistant(modelName: String): SummaryAssistant {
-    return AiServices.builder(SummaryAssistant::class.java)
-        .chatModel(
-            OllamaChatModel.builder()
-                .baseUrl(AppConfig.providers.ollama.baseUrl)
-                .modelName(modelName)
-                .timeout(Duration.ofMinutes(2))
-                .returnThinking(false)
-                .build()
-        )
-        .systemMessage(
-            """You summarize web tool results for another coding agent.
+    private fun getAgent(): AgentInstance {
+        return AgentInstance.create(
+            AgentConfig(
+                modelName = ModelSelection.BEST_SMALL,
+                provider = ProviderType.OLLAMA,
+                systemPrompt =
+                    """You summarize web tool results for another coding agent.
 Return only the useful answer, not chain of thought.
 Stay grounded in the provided data.
 Prefer concise factual summaries.
 If the requested goal cannot be satisfied from the provided data, say what is missing.
-Include relevant URLs when they materially help the next step."""
+Include relevant URLs when they materially help the next step.""",
+                tools = emptyList(),
+                context = HarnessContext(null),
+                toolFilterProfile = ToolFilterProfileStore.noneProfile(),
+                listeners = emptyList(),
+            )
         )
-        .build()
+    }
 }

@@ -2,14 +2,14 @@ package org.baizey.harness.tools.fs
 
 import dev.langchain4j.agent.tool.P
 import dev.langchain4j.agent.tool.Tool
-import org.baizey.harness.policy.PathPolicyLogic
+import org.baizey.harness.policy.UserPathPolicyLogic
 import org.baizey.harness.policy.path.FsAccessType
 import org.baizey.runtime.ErrorLog
 import java.nio.file.Files
 import java.nio.file.Path
 
 class WriteFileTool(
-    private val pathPolicyLogic: PathPolicyLogic
+    private val userPathPolicyLogic: UserPathPolicyLogic
 ) {
     @Tool(
         name = "write_file",
@@ -33,7 +33,7 @@ Example: write_file(path="C:/repo/notes.txt", content="hello", shouldOverwriteEx
             return "Path is invalid: $path"
         }
 
-        pathPolicyLogic.evaluate(file.toString(), FsAccessType.WRITE).toDenyReasonOrNull()?.let { return it }
+        userPathPolicyLogic.evaluate(file.toString(), FsAccessType.WRITE).toDenyReasonOrNull()?.let { return it }
         return try {
             val existedBefore = Files.exists(file)
             if (existedBefore && !actualOverwrite) return "File already exists: $file"

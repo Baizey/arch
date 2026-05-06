@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-class GitPolicyLogicTest {
+class UserGitPolicyLogicTest {
     private var permissionDecisionProvider: (PermissionRequest) -> PermissionDecision = { request ->
         PermissionDecision(
             isAllowed = true,
@@ -37,7 +37,7 @@ class GitPolicyLogicTest {
         }
     }
 
-    private val logic = GitPolicyLogic(interactionPort)
+    private val logic = UserGitPolicyLogic(interactionPort)
 
     @Test
     fun `reuses a session policy for the same repo and access type`() {

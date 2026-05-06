@@ -2,7 +2,6 @@ package org.baizey.harness.tools.web
 
 import java.net.http.HttpClient
 import java.time.Duration
-import org.baizey.commands.utils.ModelSelection
 import org.baizey.harness.tools.fetch.HttpWebPageFetcher
 import org.baizey.harness.tools.search.engine.MultiProviderWebSearchEngine
 import org.baizey.harness.tools.search.http.SearchApiHttpClient
@@ -10,7 +9,7 @@ import org.baizey.harness.tools.search.providers.bing.BingWebSearchProvider
 import org.baizey.harness.tools.web.search.providers.brave.BraveWebSearchProvider
 import org.baizey.harness.tools.search.providers.duckduckgo.DuckDuckGoSearchProvider
 import org.baizey.harness.tools.search.providers.google.GoogleCustomSearchProvider
-import org.baizey.harness.tools.summary.CurrentModelContentSummarizer
+import org.baizey.harness.tools.web.summary.CurrentModelContentSummarizer
 
 internal object WebTools {
     fun create(): List<Any> {
@@ -20,9 +19,7 @@ internal object WebTools {
             .build()
         val webPageFetcher = HttpWebPageFetcher(httpClient)
         val searchApiHttpClient = SearchApiHttpClient(httpClient)
-        val webContentSummarizer = CurrentModelContentSummarizer(
-            modelStrategy = { ModelSelection.BEST_SMALL }
-        )
+        val webContentSummarizer = CurrentModelContentSummarizer()
         return listOf(
             SearchWebTool(
                 searchEngine = MultiProviderWebSearchEngine(

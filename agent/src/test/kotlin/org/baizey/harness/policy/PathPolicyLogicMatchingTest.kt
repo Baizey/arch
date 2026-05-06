@@ -37,7 +37,7 @@ class PathPolicyLogicMatchingTest {
         }
     }
 
-    private val tool = PathPolicyLogic(interactionPort)
+    private val tool = UserPathPolicyLogic(interactionPort)
 
     @TempDir
     lateinit var tempDir: Path

@@ -20,7 +20,7 @@ object SystemPrompt {
             - The working directory reflects where the agent was started. Treat it as the default context when locating files or inferring project scope.
             - Interpret relative dates like today, tomorrow, and yesterday using the local date and timezone above.
             
-            ${context.pathPolicyLogic.renderAgentPolicySummary()}
+            ${context.userPathPolicyLogic.renderAgentPolicySummary()}
             
             **Identity and Role:**
             You are $agentName, an AI assistant specialized in software engineering and general problem solving.
