@@ -16,7 +16,7 @@ import kotlin.io.path.Path
 import kotlin.io.path.createParentDirectories
 import kotlin.io.path.notExists
 
-class UserGitPolicyLogicLogic(
+class UserGitPolicyLogic(
     private val interactionPort: HarnessInteractionPort
 ) : GitPolicyLogic {
     private val activePolicies = mutableListOf<GitPolicy>()

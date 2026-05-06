@@ -37,7 +37,7 @@ class UserGitPolicyLogicLogicTest {
         }
     }
 
-    private val logic = UserGitPolicyLogicLogic(interactionPort)
+    private val logic = UserGitPolicyLogic(interactionPort)
 
     @Test
     fun `reuses a session policy for the same repo and access type`() {

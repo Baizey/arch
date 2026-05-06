@@ -5,7 +5,7 @@ import org.baizey.harness.HarnessInteractionPort
 import org.baizey.harness.PermissionDecision
 import org.baizey.harness.PermissionRequest
 import org.baizey.harness.policy.git.GitAccessType
-import org.baizey.harness.policy.UserGitPolicyLogicLogic
+import org.baizey.harness.policy.UserGitPolicyLogic
 import org.baizey.harness.policy.shared.PolicyLifetime
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -40,7 +40,7 @@ class UserGitPolicyLogicLogicTest {
         }
     }
 
-    private val tool = UserGitPolicyLogicLogic(interactionPort)
+    private val tool = UserGitPolicyLogic(interactionPort)
 
     @TempDir
     lateinit var tempDir: Path

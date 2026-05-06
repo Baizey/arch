@@ -2,12 +2,12 @@ package org.baizey.harness.tools.git
 
 import dev.langchain4j.agent.tool.P
 import dev.langchain4j.agent.tool.Tool
-import org.baizey.harness.policy.UserGitPolicyLogicLogic
+import org.baizey.harness.policy.UserGitPolicyLogic
 import org.baizey.harness.policy.git.GitAccessType.MODIFY_LOCAL
 import org.baizey.runtime.ErrorLog
 
 class GitCheckoutTool(
-    private val gitPolicyLogic: UserGitPolicyLogicLogic
+    private val gitPolicyLogic: UserGitPolicyLogic
 ) {
     @Tool(
         name = "git_checkout",
