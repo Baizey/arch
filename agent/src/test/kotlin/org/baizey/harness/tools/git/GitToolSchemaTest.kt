@@ -6,30 +6,38 @@ import org.baizey.harness.HarnessInteractionPort
 import org.baizey.harness.HarnessContext
 import org.baizey.harness.PermissionDecision
 import org.baizey.harness.PermissionRequest
+import org.baizey.harness.policy.PolicyCollection
+import org.baizey.harness.policy.UserGitPolicyLogic
+import org.baizey.harness.policy.UserPathPolicyLogic
 import org.baizey.harness.policy.shared.PolicyLifetime
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class GitToolSchemaTest {
-    private val toolContext = HarnessContext(
-        interactionPort = object : HarnessInteractionPort {
-            override fun askUserQuestion(question: String, options: List<String>): AskUserAnswer {
-                return AskUserAnswer(
-                    isAccepted = true,
-                    selection = options.firstOrNull().orEmpty(),
-                    selectionIndex = 0
-                )
-            }
-
-            override fun requestPermission(request: PermissionRequest): PermissionDecision {
-                return PermissionDecision(
-                    isAllowed = true,
-                    lifetime = PolicyLifetime.ONCE,
-                    scope = request.path
-                )
-            }
+    private val interactionPort = object : HarnessInteractionPort {
+        override fun askUserQuestion(question: String, options: List<String>): AskUserAnswer {
+            return AskUserAnswer(
+                isAccepted = true,
+                selection = options.firstOrNull().orEmpty(),
+                selectionIndex = 0
+            )
         }
+
+        override fun requestPermission(request: PermissionRequest): PermissionDecision {
+            return PermissionDecision(
+                isAllowed = true,
+                lifetime = PolicyLifetime.ONCE,
+                scope = request.path
+            )
+        }
+    }
+    private val toolContext = HarnessContext(
+        interactionPort = interactionPort,
+        policies = PolicyCollection(
+            git = UserGitPolicyLogic(interactionPort),
+            path = UserPathPolicyLogic(interactionPort)
+        )
     )
 
     @Test

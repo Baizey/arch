@@ -2,7 +2,7 @@ package org.baizey.harness.tools.fs
 
 import dev.langchain4j.agent.tool.P
 import dev.langchain4j.agent.tool.Tool
-import org.baizey.harness.policy.UserPathPolicyLogic
+import org.baizey.harness.policy.PathPolicyLogic
 import org.baizey.harness.policy.path.FsAccessType.WRITE
 import org.baizey.runtime.ErrorLog
 import java.nio.file.Files
@@ -11,7 +11,7 @@ import kotlin.io.path.isRegularFile
 import kotlin.io.path.notExists
 
 class EditFileTool(
-    private val userPathPolicyLogic: UserPathPolicyLogic
+    private val pathPolicyLogic: PathPolicyLogic
 ) {
     @Tool(
         name = "edit_file",
@@ -39,7 +39,7 @@ Example: edit_file(path="C:/repo/app.kt", startLine=10, endLineExclusive=12, new
             return "Path is invalid: $path"
         }
 
-        userPathPolicyLogic.evaluate(file.toString(), WRITE).toDenyReasonOrNull()?.let { return it }
+        pathPolicyLogic.evaluate(file.toString(), WRITE).toDenyReasonOrNull()?.let { return it }
         if (startLine < 0) return "startLine must be at least 0"
         if (endLineExclusive < startLine) return "endLineExclusive must be >= startLine"
 

@@ -6,6 +6,9 @@ import org.baizey.harness.HarnessInteractionPort
 import org.baizey.harness.HarnessContext
 import org.baizey.harness.PermissionDecision
 import org.baizey.harness.PermissionRequest
+import org.baizey.harness.policy.PolicyCollection
+import org.baizey.harness.policy.UserGitPolicyLogic
+import org.baizey.harness.policy.UserPathPolicyLogic
 import org.baizey.harness.policy.shared.PolicyLifetime
 import org.baizey.harness.tools.fs.InspectPathAccessTool
 import org.baizey.harness.tools.fs.ReadFileTool
@@ -18,24 +21,31 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ToolParameterNamesTest {
-    private val toolContext = HarnessContext(
-        interactionPort = object : HarnessInteractionPort {
-            override fun askUserQuestion(question: String, options: List<String>): AskUserAnswer {
-                return AskUserAnswer(
-                    isAccepted = true,
-                    selection = options.firstOrNull().orEmpty(),
-                    selectionIndex = 0
-                )
-            }
-
-            override fun requestPermission(request: PermissionRequest): PermissionDecision {
-                return PermissionDecision(
-                    isAllowed = true,
-                    lifetime = PolicyLifetime.ONCE,
-                    scope = request.path
-                )
-            }
+    private val interactionPort = object : HarnessInteractionPort {
+        override fun askUserQuestion(question: String, options: List<String>): AskUserAnswer {
+            return AskUserAnswer(
+                isAccepted = true,
+                selection = options.firstOrNull().orEmpty(),
+                selectionIndex = 0
+            )
         }
+
+        override fun requestPermission(request: PermissionRequest): PermissionDecision {
+            return PermissionDecision(
+                isAllowed = true,
+                lifetime = PolicyLifetime.ONCE,
+                scope = request.path
+            )
+        }
+    }
+    private val pathPolicyLogic = UserPathPolicyLogic(interactionPort)
+    private val gitPolicyLogic = UserGitPolicyLogic(interactionPort)
+    private val toolContext = HarnessContext(
+        interactionPort = interactionPort,
+        policies = PolicyCollection(
+            git = gitPolicyLogic,
+            path = pathPolicyLogic
+        )
     )
 
     @Test
@@ -63,7 +73,7 @@ class ToolParameterNamesTest {
 
     @Test
     fun `read file tool specification exposes the intended description and parameter names`() {
-        val tool = ReadFileTool(toolContext.userPathPolicyLogic)
+        val tool = ReadFileTool(toolContext.pathPolicyLogic)
         val specification = ToolSpecifications.toolSpecificationsFrom(tool)
             .single { it.name() == "read_file" }
 
@@ -80,7 +90,7 @@ class ToolParameterNamesTest {
 
     @Test
     fun `search files tool specification documents optional query behavior`() {
-        val tool = SearchFilesTool(toolContext.userPathPolicyLogic)
+        val tool = SearchFilesTool(toolContext.pathPolicyLogic)
         val specification = ToolSpecifications.toolSpecificationsFrom(tool)
             .single { it.name() == "search_files" }
 
@@ -104,7 +114,7 @@ class ToolParameterNamesTest {
 
     @Test
     fun `inspect path access tool exposes the intended description and parameter name`() {
-        val tool = InspectPathAccessTool(toolContext.userPathPolicyLogic)
+        val tool = InspectPathAccessTool(toolContext.pathPolicyLogic)
         val specification = ToolSpecifications.toolSpecificationsFrom(tool)
             .single { it.name() == "inspect_path_access" }
 

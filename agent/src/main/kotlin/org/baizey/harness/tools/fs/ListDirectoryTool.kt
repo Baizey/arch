@@ -2,7 +2,7 @@ package org.baizey.harness.tools.fs
 
 import dev.langchain4j.agent.tool.P
 import dev.langchain4j.agent.tool.Tool
-import org.baizey.harness.policy.UserPathPolicyLogic
+import org.baizey.harness.policy.PathPolicyLogic
 import org.baizey.harness.policy.path.FsAccessType
 import org.baizey.runtime.ErrorLog
 import java.nio.file.FileSystems
@@ -12,7 +12,7 @@ import kotlin.io.path.isDirectory
 import kotlin.io.path.notExists
 
 class ListDirectoryTool(
-    private val userPathPolicyLogic: UserPathPolicyLogic
+    private val pathPolicyLogic: PathPolicyLogic
 ) {
     @Tool(
         name = "list_directory",
@@ -47,7 +47,7 @@ Example: list_directory(path="C:/repo", depth=2, glob="*.kt")"""]
             return "Path is invalid: $path"
         }
 
-        userPathPolicyLogic.evaluate(directory.toString(), FsAccessType.READ).toDenyReasonOrNull()?.let { return it }
+        pathPolicyLogic.evaluate(directory.toString(), FsAccessType.READ).toDenyReasonOrNull()?.let { return it }
         if (actualDepth < 1) return "Depth must be at least 1"
         if (!actualIncludeFiles && !actualIncludeDirs) return "At least one of shouldIncludeFiles or shouldIncludeDirectories must be true"
         if (actualMaxEntries <= 0) return "maxEntries must be greater than 0"

@@ -5,6 +5,9 @@ import org.baizey.harness.HarnessInteractionPort
 import org.baizey.harness.HarnessContext
 import org.baizey.harness.PermissionDecision
 import org.baizey.harness.PermissionRequest
+import org.baizey.harness.policy.PolicyCollection
+import org.baizey.harness.policy.UserGitPolicyLogic
+import org.baizey.harness.policy.UserPathPolicyLogic
 import org.baizey.harness.policy.shared.PolicyLifetime
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -22,15 +25,20 @@ abstract class FsToolTestSupport {
         }
     }
 
-    protected val toolContext = HarnessContext(interactionPort)
-    protected val pathPolicyLogic get() = toolContext.userPathPolicyLogic
-    protected val shellPolicyLogic get() = toolContext.shellPolicyLogic
+    protected val pathPolicyLogic = UserPathPolicyLogic(interactionPort)
+    protected val gitPolicyLogic = UserGitPolicyLogic(interactionPort)
+    protected val toolContext = HarnessContext(
+        interactionPort = interactionPort,
+        policies = PolicyCollection(
+            git = gitPolicyLogic,
+            path = pathPolicyLogic
+        )
+    )
 
     @BeforeEach
     fun setUpFsToolTestSupport() {
         pathPolicyLogic.clearPolicies()
-        shellPolicyLogic.clearPolicies()
-        toolContext.gitPolicyLogic.clearPolicies()
+        gitPolicyLogic.clearPolicies()
     }
 
     @AfterEach
@@ -38,8 +46,7 @@ abstract class FsToolTestSupport {
         permissionDecisionProvider =
             { PermissionDecision(isAllowed = true, lifetime = PolicyLifetime.ONCE, scope = it.path) }
         pathPolicyLogic.clearPolicies()
-        shellPolicyLogic.clearPolicies()
-        toolContext.gitPolicyLogic.clearPolicies()
+        gitPolicyLogic.clearPolicies()
     }
 
     protected fun denyPermissions(reason: String = "Denied for test") {

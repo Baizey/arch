@@ -6,6 +6,9 @@ import org.baizey.harness.HarnessContext
 import org.baizey.harness.HarnessInteractionPort
 import org.baizey.harness.PermissionDecision
 import org.baizey.harness.PermissionRequest
+import org.baizey.harness.policy.PolicyCollection
+import org.baizey.harness.policy.UserGitPolicyLogic
+import org.baizey.harness.policy.UserPathPolicyLogic
 import org.baizey.harness.policy.shared.PolicyLifetime
 import org.baizey.runtime.ToolFilterMode
 import org.baizey.runtime.ToolFilterProfile
@@ -14,16 +17,23 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ToolFilteringTest {
-    private val toolContext = HarnessContext(
-        interactionPort = object : HarnessInteractionPort {
-            override fun askUserQuestion(question: String, options: List<String>): AskUserAnswer {
-                return AskUserAnswer(true, options.firstOrNull().orEmpty(), 0)
-            }
-
-            override fun requestPermission(request: PermissionRequest): PermissionDecision {
-                return PermissionDecision(true, PolicyLifetime.ONCE, request.path)
-            }
+    private val interactionPort = object : HarnessInteractionPort {
+        override fun askUserQuestion(question: String, options: List<String>): AskUserAnswer {
+            return AskUserAnswer(true, options.firstOrNull().orEmpty(), 0)
         }
+
+        override fun requestPermission(request: PermissionRequest): PermissionDecision {
+            return PermissionDecision(true, PolicyLifetime.ONCE, request.path)
+        }
+    }
+    private val pathPolicyLogic = UserPathPolicyLogic(interactionPort)
+    private val gitPolicyLogic = UserGitPolicyLogic(interactionPort)
+    private val toolContext = HarnessContext(
+        interactionPort = interactionPort,
+        policies = PolicyCollection(
+            git = gitPolicyLogic,
+            path = pathPolicyLogic
+        )
     )
 
     @Test

@@ -2,6 +2,13 @@ package org.baizey.harness.tools.web.summary
 
 import org.baizey.commands.utils.ModelSelection
 import org.baizey.harness.HarnessContext
+import org.baizey.harness.HarnessInteractionPort
+import org.baizey.harness.PermissionDecision
+import org.baizey.harness.PermissionRequest
+import org.baizey.harness.policy.PolicyCollection
+import org.baizey.harness.policy.UserGitPolicyLogic
+import org.baizey.harness.policy.UserPathPolicyLogic
+import org.baizey.harness.policy.shared.PolicyLifetime
 import org.baizey.harness.tools.fetch.WebsiteDocument
 import org.baizey.harness.tools.search.FetchedSearchResultContent
 import org.baizey.harness.tools.search.WebSearchResponse
@@ -11,6 +18,27 @@ import org.baizey.runtime.agent.AgentInstance
 import org.baizey.runtime.agent.ProviderType
 
 internal class CurrentModelContentSummarizer : ContentSummarizer {
+    private val interactionPort = object : HarnessInteractionPort {
+        override fun askUserQuestion(question: String, options: List<String>) =
+            error("CurrentModelContentSummarizer does not ask user questions")
+
+        override fun requestPermission(request: PermissionRequest): PermissionDecision =
+            PermissionDecision(
+                isAllowed = false,
+                lifetime = PolicyLifetime.ONCE,
+                scope = request.path,
+                reason = "CurrentModelContentSummarizer does not request tool permissions"
+            )
+    }
+
+    private val context = HarnessContext(
+        interactionPort = interactionPort,
+        policies = PolicyCollection(
+            git = UserGitPolicyLogic(interactionPort),
+            path = UserPathPolicyLogic(interactionPort)
+        )
+    )
+
     override fun summarizeSearchResults(
         query: String,
         queryGoal: String?,
@@ -107,7 +135,7 @@ Prefer concise factual summaries.
 If the requested goal cannot be satisfied from the provided data, say what is missing.
 Include relevant URLs when they materially help the next step.""",
                 tools = emptyList(),
-                context = HarnessContext(null),
+                context = context,
                 toolFilterProfile = ToolFilterProfileStore.noneProfile(),
                 listeners = emptyList(),
             )

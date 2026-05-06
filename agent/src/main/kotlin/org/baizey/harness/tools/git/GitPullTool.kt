@@ -2,12 +2,12 @@ package org.baizey.harness.tools.git
 
 import dev.langchain4j.agent.tool.P
 import dev.langchain4j.agent.tool.Tool
-import org.baizey.harness.policy.UserGitPolicyLogic
+import org.baizey.harness.policy.GitPolicyLogic
 import org.baizey.harness.policy.git.GitAccessType.PULL
 import org.baizey.runtime.ErrorLog
 
 class GitPullTool(
-    private val gitPolicyLogic: UserGitPolicyLogic
+    private val gitPolicyLogic: GitPolicyLogic
 ) {
     @Tool(
         name = "git_pull",

@@ -8,12 +8,11 @@ class HarnessContext(
     val interactionPort: HarnessInteractionPort,
     val policies: PolicyCollection
 ) {
-    val userPathPolicyLogic: PathPolicyLogic = policies.path
+    val pathPolicyLogic: PathPolicyLogic = policies.path
     val gitPolicyLogic: GitPolicyLogic = policies.git
 
-
     fun reloadFromPersistence() {
-        userPathPolicyLogic.reloadFromPersistence()
+        pathPolicyLogic.reloadFromPersistence()
         gitPolicyLogic.reloadFromPersistence()
     }
 }

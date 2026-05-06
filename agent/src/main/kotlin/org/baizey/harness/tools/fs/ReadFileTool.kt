@@ -2,7 +2,7 @@ package org.baizey.harness.tools.fs
 
 import dev.langchain4j.agent.tool.P
 import dev.langchain4j.agent.tool.Tool
-import org.baizey.harness.policy.UserPathPolicyLogic
+import org.baizey.harness.policy.PathPolicyLogic
 import org.baizey.harness.policy.path.FsAccessType.READ
 import org.baizey.runtime.ErrorLog
 import java.nio.file.Files
@@ -11,7 +11,7 @@ import kotlin.io.path.isRegularFile
 import kotlin.io.path.notExists
 
 class ReadFileTool(
-    private val userPathPolicyLogic: UserPathPolicyLogic
+    private val pathPolicyLogic: PathPolicyLogic
 ) {
     @Tool(
         name = "read_file",
@@ -39,7 +39,7 @@ Example: read_file(path="C:/repo/app.kt", startLine=40, endLineExclusive=80, max
             return "Path is invalid: $path"
         }
 
-        userPathPolicyLogic.evaluate(file.toString(), READ).toDenyReasonOrNull()?.let { return it }
+        pathPolicyLogic.evaluate(file.toString(), READ).toDenyReasonOrNull()?.let { return it }
         if (actualStartLine < 0) return "startLine must be at least 0"
         if (actualMaxLines <= 0) return "maxLines must be greater than 0"
 

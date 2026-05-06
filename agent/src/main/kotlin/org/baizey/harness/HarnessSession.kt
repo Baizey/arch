@@ -10,6 +10,9 @@ import dev.langchain4j.model.chat.listener.ChatModelResponseContext
 import kotlinx.serialization.Serializable
 import org.baizey.commands.utils.ModelSelection
 import org.baizey.commands.utils.ModelSelectionResult
+import org.baizey.harness.policy.PolicyCollection
+import org.baizey.harness.policy.UserGitPolicyLogic
+import org.baizey.harness.policy.UserPathPolicyLogic
 import org.baizey.runtime.AgentRunInterruptedException
 import org.baizey.runtime.AgentRuntime
 import org.baizey.runtime.ToolFilterProfile
@@ -104,7 +107,13 @@ class HarnessSession(
             )
         }
 ) {
-    private val toolContext = HarnessContext(interactionPort)
+    private val toolContext = HarnessContext(
+        interactionPort = interactionPort,
+        policies = PolicyCollection(
+            git = UserGitPolicyLogic(interactionPort),
+            path = UserPathPolicyLogic(interactionPort)
+        )
+    )
     private val lock = Any()
     private val ids = AtomicLong(0)
     private val messages = mutableListOf<HarnessChatEntry>()
