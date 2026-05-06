@@ -22,7 +22,7 @@ import kotlin.io.path.notExists
 
 class UserPathPolicyLogic(
     private val interactionPort: HarnessInteractionPort
-) : org.baizey.harness.policy.PathPolicy {
+) : PathPolicyLogic {
     private val activePolicies = mutableListOf<PathPolicy>()
     private val inaccessibleDir = SystemPath.disallowBotDir.toAbsolutePath().normalize().toString()
 
@@ -155,16 +155,15 @@ class UserPathPolicyLogic(
         return policy
     }
 
-    fun reloadFromPersistence(): List<PathPolicy> {
+    override fun reloadFromPersistence() {
         val path = SystemPath.policyFile
         path.createParentDirectories()
-        if (path.notExists()) return listOf()
+        if (path.notExists()) return
         val stored = Files.readString(path).fromJson<PathPersistedPolicy>()
         val current = this.activePolicies.filter { it.lifetime != PolicyLifetime.FOREVER }
         activePolicies.clear()
         activePolicies.addAll(stored.policies)
         activePolicies.addAll(current)
-        return activePolicies.toList()
     }
 
     fun findRelevantPolicies(path: String): List<PathPolicy> {

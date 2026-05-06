@@ -6,18 +6,20 @@ import org.baizey.harness.policy.path.FsAccessType
 import org.baizey.harness.policy.path.PathAccessInspection
 import org.baizey.harness.policy.path.PathPolicyResult
 
-interface PathPolicy {
+interface PathPolicyLogic {
     fun inspectPath(rawFilePath: String): PathAccessInspection
     fun evaluate(rawFilePath: String, accessType: FsAccessType): PathPolicyResult
     fun renderAgentPolicySummary(): String
+    fun reloadFromPersistence()
 }
 
-interface GitPolicy {
+interface GitPolicyLogic {
     fun evaluate(rawGitRootPath: String, accessType: GitAccessType): GitPolicyResult
     fun renderAgentPolicySummary(): String
+    fun reloadFromPersistence()
 }
 
-class PolicyCollection(
-    val gitPolicy: GitPolicy,
-    val pathPolicy: PathPolicy
+data class PolicyCollection(
+    val git: GitPolicyLogic,
+    val path: PathPolicyLogic
 )

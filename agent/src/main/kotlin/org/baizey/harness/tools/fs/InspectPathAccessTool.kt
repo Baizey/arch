@@ -2,10 +2,10 @@ package org.baizey.harness.tools.fs
 
 import dev.langchain4j.agent.tool.P
 import dev.langchain4j.agent.tool.Tool
-import org.baizey.harness.policy.UserPathPolicyLogic
+import org.baizey.harness.policy.PathPolicyLogic
 
 class InspectPathAccessTool(
-    private val userPathPolicyLogic: UserPathPolicyLogic
+    private val userPathPolicyLogicLogic: PathPolicyLogic
 ) {
     @Tool(
         name = "inspect_path_access",
@@ -23,7 +23,7 @@ Example: inspect_path_access(path="C:/repo/src/Main.kt")"""]
             return "Path is invalid: $path"
         }
 
-        val inspection = userPathPolicyLogic.inspectPath(normalizedPath.toString())
+        val inspection = userPathPolicyLogicLogic.inspectPath(normalizedPath.toString())
         return buildString {
             appendLine("Path: ${inspection.path}")
             appendLine("Policy semantics:")

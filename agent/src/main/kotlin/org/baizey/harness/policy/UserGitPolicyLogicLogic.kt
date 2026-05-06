@@ -16,9 +16,9 @@ import kotlin.io.path.Path
 import kotlin.io.path.createParentDirectories
 import kotlin.io.path.notExists
 
-class UserGitPolicyLogic(
+class UserGitPolicyLogicLogic(
     private val interactionPort: HarnessInteractionPort
-) : org.baizey.harness.policy.GitPolicy {
+) : GitPolicyLogic {
     private val activePolicies = mutableListOf<GitPolicy>()
     private val inaccessibleDir = SystemPath.disallowBotDir.toAbsolutePath().normalize().toString()
 
@@ -99,16 +99,15 @@ class UserGitPolicyLogic(
         return newPolicy
     }
 
-    fun reloadFromPersistence(): List<GitPolicy> {
+    override fun reloadFromPersistence() {
         val path = SystemPath.gitPolicyFile
         path.createParentDirectories()
-        if (path.notExists()) return listOf()
+        if (path.notExists()) return
         val stored = Files.readString(path).fromJson<GitPersistedPolicy>()
         val current = activePolicies.filter { it.lifetime != PolicyLifetime.FOREVER }
         activePolicies.clear()
         activePolicies.addAll(stored.policies)
         activePolicies.addAll(current)
-        return activePolicies.toList()
     }
 
     fun clearPolicies() {
