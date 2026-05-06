@@ -72,7 +72,36 @@ class UserGitPolicyLogicLogic(
     }
 
     override fun renderAgentPolicySummary(): String {
-        TODO("Not yet implemented")
+        val explicitAllowPolicies = activePolicies
+            .filter { it.isAllowed }
+            .sortedWith(compareBy<GitPolicy> { it.gitRoot.lowercase() }.thenBy { accessTypesLabel(it.accessTypes) })
+        val explicitDenyPolicies = activePolicies
+            .filter { it.isDenied }
+            .sortedWith(compareBy<GitPolicy> { it.gitRoot.lowercase() }.thenBy { accessTypesLabel(it.accessTypes) })
+
+        return buildString {
+            appendLine("**Git Policy:**")
+            appendLine("- Exact repository root match is required.")
+            appendLine("- Repositories not listed below are not pre-approved. Access them if necessary.")
+            appendLine("- Explicitly allowed without asking:")
+            if (explicitAllowPolicies.isEmpty()) {
+                appendLine("  - none")
+            } else {
+                explicitAllowPolicies.forEach { policy ->
+                    appendLine("  - ${policy.gitRoot}: ${accessTypesLabel(policy.accessTypes)}${reasonSuffix(policy.reason)}")
+                }
+            }
+            appendLine("- Explicitly denied:")
+            appendLine("  - repositories under $inaccessibleDir: ${accessTypesLabel(GitAccessType.entries)} (system protected)")
+            if (explicitDenyPolicies.isEmpty()) {
+                append("  - none beyond the system protected directory")
+            } else {
+                explicitDenyPolicies.forEach { policy ->
+                    appendLine()
+                    append("  - ${policy.gitRoot}: ${accessTypesLabel(policy.accessTypes)}${reasonSuffix(policy.reason)}")
+                }
+            }
+        }
     }
 
     fun createNewPolicy(gitRoot: String, accessType: GitAccessType): GitPolicy {
@@ -146,5 +175,13 @@ class UserGitPolicyLogicLogic(
             )
         )
         return result
+    }
+
+    private fun accessTypesLabel(accessTypes: List<GitAccessType>): String {
+        return accessTypes.distinct().sortedBy { it.ordinal }.joinToString(", ") { it.name }
+    }
+
+    private fun reasonSuffix(reason: String): String {
+        return reason.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: ""
     }
 }
