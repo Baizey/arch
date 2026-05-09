@@ -351,6 +351,7 @@ class HarnessSession(
     }
 
     private fun runSingleConversation(initialPrompt: String) {
+        var latestUserMessage = initialPrompt
         var latestPrompt = initialPrompt
         while (true) {
             if (stopAtNextBreakRequested) {
@@ -370,8 +371,8 @@ class HarnessSession(
                     title = "Run interrupted",
                     detail = "A newer user message preempted the current run before the next tool execution."
                 )
-                latestPrompt = dequeuePendingMessageTextAndRecordAsUserMessage()
-                    ?: "continue; if you think you're done say so."
+                latestUserMessage = dequeuePendingMessageTextAndRecordAsUserMessage() ?: latestUserMessage
+                latestPrompt = continuePrompt(latestUserMessage)
                 continue
             }
             if (consumeInterruptIfPendingMessageExists()) {
@@ -380,8 +381,8 @@ class HarnessSession(
                     title = "Run interrupted",
                     detail = "A newer user message preempted the current run before the assistant response was committed."
                 )
-                latestPrompt = dequeuePendingMessageTextAndRecordAsUserMessage()
-                    ?: "continue; if you think you're done say so."
+                latestUserMessage = dequeuePendingMessageTextAndRecordAsUserMessage() ?: latestUserMessage
+                latestPrompt = continuePrompt(latestUserMessage)
                 continue
             }
             if (agentResponse != null && agentResponse != "null" && agentResponse != "") {
@@ -398,9 +399,16 @@ class HarnessSession(
                 )
                 return
             }
-            latestPrompt = dequeuePendingMessageTextAndRecordAsUserMessage()
-                ?: "continue; if you think you're done say so."
+            latestUserMessage = dequeuePendingMessageTextAndRecordAsUserMessage() ?: latestUserMessage
+            latestPrompt = continuePrompt(latestUserMessage)
         }
+    }
+
+    private fun continuePrompt(lastPrompt: String): String {
+        return """You have paused, this is an automated message;
+The users last message was: '$lastPrompt';
+If you have a final result for the user provide it, or ask any questions you need clarified, otherwise keep working on the given task.
+"""
     }
 
     private fun resolveNextPromptAfterBreak(): String? {
