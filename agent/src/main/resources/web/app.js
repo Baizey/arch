@@ -235,7 +235,9 @@ function renderViewTabs() {
 
 function renderControls() {
   const session = latestState.session;
-  const pendingCount = latestState.pendingAskUsers.length + latestState.pendingPermissions.length;
+  const pendingCount = latestState.pendingAskUsers.length
+    + latestState.pendingPermissions.length
+    + latestState.session.pendingMessages.length;
   const displayedActiveContextSize = getDisplayedActiveContextSize();
   sessionCardEl.dataset.state = pendingCount > 0 ? "attention" : session.running ? "running" : "idle";
   contextCardEl.dataset.state = displayedActiveContextSize > 0 ? "tracked" : "empty";

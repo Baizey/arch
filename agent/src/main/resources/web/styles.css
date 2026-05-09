@@ -284,15 +284,13 @@ button {
   color: var(--heading);
 }
 
-.model-control strong,
-.context-card strong {
+.model-control strong {
   position: relative;
   width: fit-content;
   padding-left: 16px;
 }
 
-.model-control strong::before,
-.context-card strong::before {
+.model-control strong::before {
   content: "";
   position: absolute;
   top: 50%;
@@ -305,14 +303,8 @@ button {
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
 }
 
-.context-card[data-state="tracked"] strong::before {
-  background: var(--accent);
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
-}
-
-.context-card[data-state="empty"] strong::before {
-  background: var(--event-system);
-  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.12);
+.context-card strong {
+  padding-left: 0;
 }
 
 select,
@@ -487,10 +479,20 @@ button:disabled {
   background: var(--surface-strong);
 }
 
+#sessionCard {
+  --session-accent: var(--event-agent);
+  --session-soft: var(--event-agent-soft);
+  border-color: color-mix(in srgb, var(--session-accent) 32%, var(--border));
+  background:
+    linear-gradient(180deg, var(--session-soft), transparent 64%),
+    var(--surface-strong);
+}
+
 #sessionCard strong {
   position: relative;
   width: fit-content;
   padding-left: 16px;
+  color: var(--heading);
 }
 
 #sessionCard strong::before {
@@ -502,23 +504,38 @@ button:disabled {
   height: 8px;
   border-radius: 50%;
   transform: translateY(-50%);
-  background: var(--success);
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
+  background: var(--session-accent);
+  box-shadow: 0 0 0 4px var(--session-soft);
 }
 
 #sessionCard[data-state="running"] strong::before {
-  background: var(--accent);
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
+  background: var(--session-accent);
+  box-shadow: 0 0 0 4px var(--session-soft);
 }
 
 #sessionCard[data-state="attention"] strong::before {
-  background: var(--attention);
-  box-shadow: 0 0 0 4px rgba(234, 179, 8, 0.14);
+  background: var(--session-accent);
+  box-shadow: 0 0 0 4px var(--session-soft);
 }
 
 #sessionCard[data-state="idle"] strong::before {
-  background: var(--success);
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
+  background: var(--session-accent);
+  box-shadow: 0 0 0 4px var(--session-soft);
+}
+
+#sessionCard[data-state="idle"] {
+  --session-accent: var(--event-agent);
+  --session-soft: var(--event-agent-soft);
+}
+
+#sessionCard[data-state="running"] {
+  --session-accent: var(--event-tool-pending);
+  --session-soft: var(--event-tool-pending-soft);
+}
+
+#sessionCard[data-state="attention"] {
+  --session-accent: var(--event-thinking);
+  --session-soft: var(--event-thinking-soft);
 }
 
 .panel {
