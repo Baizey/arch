@@ -1,5 +1,6 @@
 package org.baizey.runtime.agentic.instance
 
+import dev.langchain4j.agent.tool.ToolSpecifications
 import dev.langchain4j.mcp.McpToolProvider
 import dev.langchain4j.mcp.client.DefaultMcpClient
 import dev.langchain4j.mcp.client.transport.stdio.StdioMcpTransport
@@ -93,6 +94,9 @@ data class AgenticInstanceContext(
         policies.reloadFromPersistence()
         val mcpConfig = SystemPath.mcpConfigFile.readIfExists()?.fromJson<McpConfig>() ?: McpConfig(mapOf())
         val tools = AgentTools.create(this)
+        val registeredToolNames = tools
+            .flatMap { tool -> ToolSpecifications.toolSpecificationsFrom(tool).map { it.name() } }
+            .toSet()
         val mcpClients = mcpConfig.servers.entries.map { (key, value) ->
             DefaultMcpClient.builder()
                 .key(key)
@@ -108,7 +112,10 @@ data class AgenticInstanceContext(
         val mcpToolProvider = if (mcpClients.isEmpty()) {
             null
         } else {
-            McpToolProvider.builder().mcpClients(mcpClients).build()
+            McpToolProvider.builder()
+                .mcpClients(mcpClients)
+                .filter { _, tool -> tool.name() !in registeredToolNames }
+                .build()
         }
         return RuntimeResources(
             tools = tools,
