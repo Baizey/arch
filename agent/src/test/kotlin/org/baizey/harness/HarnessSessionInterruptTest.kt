@@ -49,7 +49,7 @@ class HarnessSessionInterruptTest {
             listOf(
                 "user" to "first question",
                 "user" to "new question",
-                SystemPrompt.agentName to "fresh answer"
+                SystemPrompt.AGENT_NAME to "fresh answer"
             ),
             messages
         )
@@ -89,7 +89,7 @@ class HarnessSessionInterruptTest {
             listOf(
                 "user" to "first question",
                 "user" to "new question",
-                SystemPrompt.agentName to "fresh answer"
+                SystemPrompt.AGENT_NAME to "fresh answer"
             ),
             messages
         )

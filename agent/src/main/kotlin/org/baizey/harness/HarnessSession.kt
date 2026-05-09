@@ -386,7 +386,7 @@ class HarnessSession(
             }
             if (agentResponse != null && agentResponse != "null" && agentResponse != "") {
                 synchronized(lock) {
-                    messages += HarnessChatEntry(nextId(), SystemPrompt.agentName, agentResponse, now())
+                    messages += HarnessChatEntry(nextId(), SystemPrompt.AGENT_NAME, agentResponse, now())
                 }
                 return
             }
