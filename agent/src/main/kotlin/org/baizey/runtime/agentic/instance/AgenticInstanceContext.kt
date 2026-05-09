@@ -25,8 +25,8 @@ import java.util.*
 abstract class AgentInstance(val context: AgenticInstanceContext) {
     val isNewSession: Boolean = context.core.sessionId == null
     val sessionId: UUID = context.core.sessionId ?: UUID.randomUUID()
-    val assistant: Assistant = buildAssistant()
     val chatMemory: MessageWindowChatMemory = buildChatMemory()
+    val assistant: Assistant = buildAssistant()
 
     abstract fun buildModel(): ChatModel
 
@@ -58,7 +58,7 @@ abstract class AgentInstance(val context: AgenticInstanceContext) {
     }
 
     private fun buildChatMemory(): MessageWindowChatMemory {
-        if (!isNewSession) {
+        if (isNewSession) {
             return MessageWindowChatMemory.builder().maxMessages(Int.MAX_VALUE).build()
         }
         TODO("Load old session state from disk.")

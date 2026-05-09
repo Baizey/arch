@@ -39,21 +39,18 @@ class OllamaAgentInstance(
             .listeners(listeners)
             .build()
 
-        val builder = AiServices.builder(Assistant::class.java)
-        builder.chatModel(model)
-        builder.chatMemory(chatMemory)
-        builder.tools(resources.tools)
-        builder.beforeToolExecution { _ ->
-            if (interrupted()) {
-                throw AgentRunInterruptedException("Interrupted before tool execution.")
+        return AiServices.builder(Assistant::class.java)
+            .chatModel(model)
+            .chatMemory(chatMemory)
+            .tools(resources.tools)
+            .beforeToolExecution { _ ->
+                if (interrupted()) {
+                    throw AgentRunInterruptedException("Interrupted before tool execution.")
+                }
             }
-        }
-        builder.systemMessageProvider { _ -> systemPrompt }
+            .systemMessageProvider { _ -> systemPrompt }
 
-        if (resources.mcpToolProvider != null) {
-            builder.toolProvider(resources.mcpToolProvider)
-        }
-
-        return builder.build()
+            .toolProvider(resources.mcpToolProvider)
+            .build()
     }
 }
