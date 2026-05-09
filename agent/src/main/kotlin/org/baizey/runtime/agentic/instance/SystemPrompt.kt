@@ -1,6 +1,5 @@
 package org.baizey.runtime.agentic.instance
 
-import org.baizey.harness.HarnessContext
 import java.nio.file.Paths
 import java.time.LocalDate
 import java.time.ZoneId
@@ -9,7 +8,7 @@ object SystemPrompt {
 
     val agentName = "Arch"
 
-    fun text(context: HarnessContext): String {
+    fun text(context: PolicyContext): String {
         val launchContext = LaunchContext.detect()
         return """  
             **Environment context:**
@@ -21,7 +20,7 @@ object SystemPrompt {
             - The working directory reflects where the agent was started. Treat it as the default context when locating files or inferring project scope.
             - Interpret relative dates like today, tomorrow, and yesterday using the local date and timezone above.
             
-            ${context.pathPolicyLogic.renderAgentPolicySummary()}
+            ${context.path.renderAgentPolicySummary()}
             
             **Identity and Role:**
             You are $agentName, an AI assistant specialized in software engineering and general problem solving.

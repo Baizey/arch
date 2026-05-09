@@ -2,30 +2,28 @@ package org.baizey.runtime
 
 import dev.langchain4j.model.chat.listener.ChatModelListener
 import org.baizey.commands.utils.ModelSelection
-import org.baizey.harness.HarnessContext
 import org.baizey.harness.HarnessRuntime
+import org.baizey.runtime.agentic.instance.AgentInstance
+import org.baizey.runtime.agentic.instance.AgenticInstanceContext
 import org.baizey.runtime.agentic.instance.SystemPrompt
-import org.baizey.harness.tools.AgentTools
-import org.baizey.runtime.agent.AgentConfig
-import org.baizey.runtime.agent.AgentInstance
 
 class AgentRuntime(
-    private val agentContext: HarnessContext,
+    private val agentContext: AgenticInstanceContext,
     private val shouldInterruptBeforeToolExecution: () -> Boolean = { false },
     private val listenersProvider: () -> List<ChatModelListener>,
     private val toolFilterRevisionProvider: () -> Int = { 0 },
     private val toolFilterProfileProvider: () -> ToolFilterProfile? = { null },
     private val reloadContextBeforeBuild: Boolean = true,
-    private val agentInstanceFactory: (AgentConfig) -> AgentInstance = { AgentInstance.create(it) }
+    private val agentInstanceFactory: (AgenticInstanceContext) -> AgentInstance = { AgentInstance.create(it) }
 ) : HarnessRuntime {
     private var activeModelRevision = ModelSelection.currentRevision()
     private var activeToolFilterRevision = toolFilterRevisionProvider()
-    private var activeConfig = buildAgentConfig()
-    private var agentInstance = buildAgentInstance(activeConfig)
+    private var activeContext = buildAgenticInstanceContext()
+    private var agentInstance = buildAgentInstance(activeContext)
 
     override val currentModel: String get() = agentInstance.displayName()
 
-    override val builtInToolCount: Int get() = activeConfig.tools.size
+    override val builtInToolCount: Int get() = agentInstance.builtInToolCount()
 
     override fun chat(prompt: String): String? = agentInstance.chat(prompt)
 
@@ -47,29 +45,30 @@ class AgentRuntime(
     }
 
     private fun replaceAgentInstance() {
-        activeConfig = buildAgentConfig()
-        agentInstance = buildAgentInstance(activeConfig)
+        activeContext = buildAgenticInstanceContext()
+        agentInstance = buildAgentInstance(activeContext)
     }
 
-    private fun buildAgentConfig(): AgentConfig {
+    private fun buildAgenticInstanceContext(): AgenticInstanceContext {
         if (reloadContextBeforeBuild) {
-            agentContext.reloadFromPersistence()
+            agentContext.policies.reloadFromPersistence()
         }
         val toolFilterProfile = toolFilterProfileProvider() ?: everythingToolFilterProfile()
-        val tools = AgentTools.create(agentContext, toolFilterProfile)
-        return AgentConfig(
-            modelName = ModelSelection.current.name,
-            provider = ModelSelection.current.provider,
-            systemPrompt = SystemPrompt.text(agentContext),
-            tools = tools,
-            context = agentContext,
-            toolFilterProfile = toolFilterProfile,
-            listeners = listenersProvider(),
-            shouldInterruptBeforeToolExecution = shouldInterruptBeforeToolExecution
+        return agentContext.copy(
+            core = agentContext.core.copy(
+                modelName = ModelSelection.current.name,
+                type = ModelSelection.current.provider,
+                systemPrompt = SystemPrompt.text(agentContext.policies),
+                listeners = listenersProvider(),
+            ),
+            tools = agentContext.tools.copy(
+                profile = toolFilterProfile,
+                shouldInterruptBeforeToolExecution = shouldInterruptBeforeToolExecution
+            )
         )
     }
 
-    private fun buildAgentInstance(config: AgentConfig): AgentInstance = agentInstanceFactory(config)
+    private fun buildAgentInstance(context: AgenticInstanceContext): AgentInstance = agentInstanceFactory(context)
 
     private fun everythingToolFilterProfile(): ToolFilterProfile {
         return ToolFilterProfile(
@@ -80,7 +79,3 @@ class AgentRuntime(
         )
     }
 }
-
-class AgentRunInterruptedException(
-    message: String
-) : RuntimeException(message)

@@ -3,10 +3,8 @@ package org.baizey.harness.tools
 import dev.langchain4j.agent.tool.ToolSpecifications
 import org.baizey.harness.AskUserAnswer
 import org.baizey.harness.HarnessInteractionPort
-import org.baizey.harness.HarnessContext
 import org.baizey.harness.PermissionDecision
 import org.baizey.harness.PermissionRequest
-import org.baizey.harness.policy.PolicyCollection
 import org.baizey.harness.policy.UserGitPolicyLogic
 import org.baizey.harness.policy.UserPathPolicyLogic
 import org.baizey.harness.policy.shared.PolicyLifetime
@@ -15,6 +13,12 @@ import org.baizey.harness.tools.fs.ReadFileTool
 import org.baizey.harness.tools.fs.SearchFilesTool
 import org.baizey.harness.tools.fs.WriteFileTool
 import org.baizey.harness.tools.web.FetchWebsiteTool
+import org.baizey.runtime.ToolFilterProfileStore
+import org.baizey.runtime.agentic.instance.AgenticInstanceContext
+import org.baizey.runtime.agentic.instance.CoreContext
+import org.baizey.runtime.agentic.instance.PolicyContext
+import org.baizey.runtime.agentic.instance.ProviderType
+import org.baizey.runtime.agentic.instance.ToolContext
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -40,13 +44,6 @@ class ToolParameterNamesTest {
     }
     private val pathPolicyLogic = UserPathPolicyLogic(interactionPort)
     private val gitPolicyLogic = UserGitPolicyLogic(interactionPort)
-    private val toolContext = HarnessContext(
-        interactionPort = interactionPort,
-        policies = PolicyCollection(
-            git = gitPolicyLogic,
-            path = pathPolicyLogic
-        )
-    )
 
     @Test
     fun `write file method preserves parameter names for tool schema reflection`() {
@@ -73,7 +70,7 @@ class ToolParameterNamesTest {
 
     @Test
     fun `read file tool specification exposes the intended description and parameter names`() {
-        val tool = ReadFileTool(toolContext.pathPolicyLogic)
+        val tool = ReadFileTool(pathPolicyLogic)
         val specification = ToolSpecifications.toolSpecificationsFrom(tool)
             .single { it.name() == "read_file" }
 
@@ -90,7 +87,7 @@ class ToolParameterNamesTest {
 
     @Test
     fun `search files tool specification documents optional query behavior`() {
-        val tool = SearchFilesTool(toolContext.pathPolicyLogic)
+        val tool = SearchFilesTool(pathPolicyLogic)
         val specification = ToolSpecifications.toolSpecificationsFrom(tool)
             .single { it.name() == "search_files" }
 
@@ -114,7 +111,7 @@ class ToolParameterNamesTest {
 
     @Test
     fun `inspect path access tool exposes the intended description and parameter name`() {
-        val tool = InspectPathAccessTool(toolContext.pathPolicyLogic)
+        val tool = InspectPathAccessTool(pathPolicyLogic)
         val specification = ToolSpecifications.toolSpecificationsFrom(tool)
             .single { it.name() == "inspect_path_access" }
 
@@ -127,7 +124,7 @@ class ToolParameterNamesTest {
 
     @Test
     fun `full built in tool schema does not leak reflection method signatures`() {
-        val schemas = AgentTools.create(toolContext)
+        val schemas = AgentTools.create(agenticContext())
             .flatMap { ToolSpecifications.toolSpecificationsFrom(it) }
             .map { it.toJson() }
 
@@ -137,5 +134,25 @@ class ToolParameterNamesTest {
             assertFalse(schema.contains("java.lang.reflect.Method"), schema)
             assertFalse(schema.contains("org.baizey.runtime.AuditLog.logPolicyDecision"), schema)
         }
+    }
+
+    private fun agenticContext(): AgenticInstanceContext {
+        return AgenticInstanceContext(
+            core = CoreContext(
+                systemPrompt = "",
+                type = ProviderType.OLLAMA,
+                modelName = "test",
+                listeners = emptyList(),
+                userInteraction = interactionPort
+            ),
+            policies = PolicyContext(
+                path = pathPolicyLogic,
+                git = gitPolicyLogic
+            ),
+            tools = ToolContext(
+                profile = ToolFilterProfileStore.everythingProfile(),
+                tools = emptyList()
+            )
+        )
     }
 }

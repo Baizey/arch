@@ -1,6 +1,5 @@
 package org.baizey.runtime.agentic.instance
 
-import dev.langchain4j.agent.tool.ToolSpecifications
 import dev.langchain4j.mcp.McpToolProvider
 import dev.langchain4j.mcp.client.DefaultMcpClient
 import dev.langchain4j.mcp.client.transport.stdio.StdioMcpTransport
@@ -11,12 +10,8 @@ import dev.langchain4j.service.AiServices
 import org.baizey.harness.HarnessInteractionPort
 import org.baizey.harness.policy.GitPolicyLogic
 import org.baizey.harness.policy.PathPolicyLogic
-import org.baizey.harness.tools.AskUserTool
-import org.baizey.harness.tools.fs.FsTools
-import org.baizey.harness.tools.git.GitTools
-import org.baizey.harness.tools.web.WebTools
+import org.baizey.harness.tools.AgentTools
 import org.baizey.runtime.*
-import org.baizey.runtime.agent.RuntimeResources
 import org.baizey.runtime.agentic.instance.exceptions.AgentRunInterruptedException
 import org.baizey.utils.IO.fromJson
 import org.baizey.utils.IO.readIfExists
@@ -26,24 +21,27 @@ abstract class AgentInstance(val context: AgenticInstanceContext) {
     val isNewSession: Boolean = context.core.sessionId == null
     val sessionId: UUID = context.core.sessionId ?: UUID.randomUUID()
     val chatMemory: MessageWindowChatMemory = buildChatMemory()
+    val resources: RuntimeResources = context.prepareRuntimeResources()
     val assistant: Assistant = buildAssistant()
 
     abstract fun buildModel(): ChatModel
 
     fun chat(prompt: String): String? = assistant.chat(prompt)
 
+    fun displayName(): String = "${context.core.modelName} (${context.core.type.displayName})"
+
+    fun builtInToolCount(): Int = resources.tools.size
+
     fun storeChatMemory() {
         TODO("Not yet implemented")
     }
 
     private fun buildAssistant(): Assistant {
-        val resources = context.prepareRuntimeResources()
         val builder = AiServices.builder(Assistant::class.java)
             .chatModel(buildModel())
             .systemMessageProvider { context.core.systemPrompt }
             .chatMemory(chatMemory)
             .tools(resources.tools)
-            .toolProvider(resources.mcpToolProvider)
             .beforeToolExecution {
                 if (context.tools.shouldInterruptBeforeToolExecution()) {
                     throw AgentRunInterruptedException("Interrupted before tool execution.")
@@ -54,6 +52,9 @@ abstract class AgentInstance(val context: AgenticInstanceContext) {
                     throw AgentRunInterruptedException("Interrupted after tool execution.")
                 }
             }
+        if (resources.mcpToolProvider != null) {
+            builder.toolProvider(resources.mcpToolProvider)
+        }
         return builder.build()
     }
 
@@ -91,7 +92,7 @@ data class AgenticInstanceContext(
     fun prepareRuntimeResources(): RuntimeResources {
         policies.reloadFromPersistence()
         val mcpConfig = SystemPath.mcpConfigFile.readIfExists()?.fromJson<McpConfig>() ?: McpConfig(mapOf())
-        val tools = applyToolProfile()
+        val tools = AgentTools.create(this)
         val mcpClients = mcpConfig.servers.entries.map { (key, value) ->
             DefaultMcpClient.builder()
                 .key(key)
@@ -104,31 +105,22 @@ data class AgenticInstanceContext(
                 )
                 .build()
         }
-        val mcpToolProvider = McpToolProvider.builder().mcpClients(mcpClients).build()
+        val mcpToolProvider = if (mcpClients.isEmpty()) {
+            null
+        } else {
+            McpToolProvider.builder().mcpClients(mcpClients).build()
+        }
         return RuntimeResources(
             tools = tools,
             mcpToolProvider = mcpToolProvider
         )
     }
-
-    private fun applyToolProfile(): List<Any> {
-        return buildList {
-            if (BuiltInToolCatalog.isEnabled("ask_user", tools.profile)) {
-                add(AskUserTool(core.userInteraction))
-            }
-            addAll(FsTools.create(policies.path).filterBuiltInTools(tools.profile))
-            addAll(WebTools.create().filterBuiltInTools(tools.profile))
-            addAll(GitTools.create(policies.git).filterBuiltInTools(tools.profile))
-        }
-    }
-
-    private fun List<Any>.filterBuiltInTools(toolFilterProfile: ToolFilterProfile?): List<Any> {
-        return filter { tool ->
-            val toolNames = ToolSpecifications.toolSpecificationsFrom(tool).map { it.name() }
-            toolNames.isEmpty() || toolNames.any { BuiltInToolCatalog.isEnabled(it, toolFilterProfile) }
-        }
-    }
 }
+
+data class RuntimeResources(
+    val tools: List<Any>,
+    val mcpToolProvider: McpToolProvider?
+)
 
 data class ToolContext(
     val profile: ToolFilterProfile,

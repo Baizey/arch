@@ -3,12 +3,9 @@ package org.baizey.harness.tools.git
 import dev.langchain4j.agent.tool.ToolSpecifications
 import org.baizey.harness.AskUserAnswer
 import org.baizey.harness.HarnessInteractionPort
-import org.baizey.harness.HarnessContext
 import org.baizey.harness.PermissionDecision
 import org.baizey.harness.PermissionRequest
-import org.baizey.harness.policy.PolicyCollection
 import org.baizey.harness.policy.UserGitPolicyLogic
-import org.baizey.harness.policy.UserPathPolicyLogic
 import org.baizey.harness.policy.shared.PolicyLifetime
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -32,17 +29,11 @@ class GitToolSchemaTest {
             )
         }
     }
-    private val toolContext = HarnessContext(
-        interactionPort = interactionPort,
-        policies = PolicyCollection(
-            git = UserGitPolicyLogic(interactionPort),
-            path = UserPathPolicyLogic(interactionPort)
-        )
-    )
+    private val gitPolicyLogic = UserGitPolicyLogic(interactionPort)
 
     @Test
     fun `git tools expose the simplified command surface`() {
-        val schemas = GitTools.create(toolContext)
+        val schemas = GitTools.create(gitPolicyLogic)
             .flatMap { ToolSpecifications.toolSpecificationsFrom(it) }
 
         val schemaByName = schemas.associateBy { it.name() }

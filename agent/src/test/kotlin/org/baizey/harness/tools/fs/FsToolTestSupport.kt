@@ -2,10 +2,8 @@ package org.baizey.harness.tools.fs
 
 import org.baizey.harness.AskUserAnswer
 import org.baizey.harness.HarnessInteractionPort
-import org.baizey.harness.HarnessContext
 import org.baizey.harness.PermissionDecision
 import org.baizey.harness.PermissionRequest
-import org.baizey.harness.policy.PolicyCollection
 import org.baizey.harness.policy.UserGitPolicyLogic
 import org.baizey.harness.policy.UserPathPolicyLogic
 import org.baizey.harness.policy.shared.PolicyLifetime
@@ -27,13 +25,6 @@ abstract class FsToolTestSupport {
 
     protected val pathPolicyLogic = UserPathPolicyLogic(interactionPort)
     protected val gitPolicyLogic = UserGitPolicyLogic(interactionPort)
-    protected val toolContext = HarnessContext(
-        interactionPort = interactionPort,
-        policies = PolicyCollection(
-            git = gitPolicyLogic,
-            path = pathPolicyLogic
-        )
-    )
 
     @BeforeEach
     fun setUpFsToolTestSupport() {

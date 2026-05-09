@@ -2,6 +2,7 @@ package org.baizey.harness
 
 import org.baizey.harness.policy.path.FsAccessType
 import org.baizey.harness.tools.fs.FsToolTestSupport
+import org.baizey.runtime.agentic.instance.PolicyContext
 import org.baizey.runtime.agentic.instance.SystemPrompt
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -42,7 +43,12 @@ class SystemPromptTest : FsToolTestSupport() {
         pathPolicyLogic.createOrUpdatePolicy(allowedRoot.resolve("file.txt"), FsAccessType.READ)
         pathPolicyLogic.createOrUpdatePolicy(deniedRoot.resolve("secret.txt"), FsAccessType.WRITE)
 
-        val prompt = SystemPrompt.text(toolContext)
+        val prompt = SystemPrompt.text(
+            PolicyContext(
+                path = pathPolicyLogic,
+                git = gitPolicyLogic
+            )
+        )
 
         assertTrue(prompt.contains("**Filesystem Policy:**"), prompt)
         assertTrue(prompt.contains("${allowedRoot.toAbsolutePath().normalize()}: READ (allowed workspace)"), prompt)

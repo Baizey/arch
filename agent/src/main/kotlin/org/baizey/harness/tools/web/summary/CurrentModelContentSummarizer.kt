@@ -1,11 +1,9 @@
 package org.baizey.harness.tools.web.summary
 
 import org.baizey.commands.utils.ModelSelection
-import org.baizey.harness.HarnessContext
 import org.baizey.harness.HarnessInteractionPort
 import org.baizey.harness.PermissionDecision
 import org.baizey.harness.PermissionRequest
-import org.baizey.harness.policy.PolicyCollection
 import org.baizey.harness.policy.UserGitPolicyLogic
 import org.baizey.harness.policy.UserPathPolicyLogic
 import org.baizey.harness.policy.shared.PolicyLifetime
@@ -13,9 +11,12 @@ import org.baizey.harness.tools.fetch.WebsiteDocument
 import org.baizey.harness.tools.search.FetchedSearchResultContent
 import org.baizey.harness.tools.search.WebSearchResponse
 import org.baizey.runtime.ToolFilterProfileStore
-import org.baizey.runtime.agent.AgentConfig
-import org.baizey.runtime.agent.AgentInstance
+import org.baizey.runtime.agentic.instance.AgenticInstanceContext
+import org.baizey.runtime.agentic.instance.AgentInstance
+import org.baizey.runtime.agentic.instance.CoreContext
+import org.baizey.runtime.agentic.instance.PolicyContext
 import org.baizey.runtime.agentic.instance.ProviderType
+import org.baizey.runtime.agentic.instance.ToolContext
 
 internal class CurrentModelContentSummarizer : ContentSummarizer {
     private val interactionPort = object : HarnessInteractionPort {
@@ -31,12 +32,9 @@ internal class CurrentModelContentSummarizer : ContentSummarizer {
             )
     }
 
-    private val context = HarnessContext(
-        interactionPort = interactionPort,
-        policies = PolicyCollection(
-            git = UserGitPolicyLogic(interactionPort),
-            path = UserPathPolicyLogic(interactionPort)
-        )
+    private val policies = PolicyContext(
+        git = UserGitPolicyLogic(interactionPort),
+        path = UserPathPolicyLogic(interactionPort)
     )
 
     override fun summarizeSearchResults(
@@ -124,20 +122,25 @@ internal class CurrentModelContentSummarizer : ContentSummarizer {
 
     private fun getAgent(): AgentInstance {
         return AgentInstance.create(
-            AgentConfig(
-                modelName = ModelSelection.BEST_SMALL,
-                provider = ProviderType.OLLAMA,
-                systemPrompt =
-                    """You summarize web tool results for another coding agent.
+            AgenticInstanceContext(
+                core = CoreContext(
+                    modelName = ModelSelection.BEST_SMALL,
+                    type = ProviderType.OLLAMA,
+                    systemPrompt =
+                        """You summarize web tool results for another coding agent.
 Return only the useful answer, not chain of thought.
 Stay grounded in the provided data.
 Prefer concise factual summaries.
 If the requested goal cannot be satisfied from the provided data, say what is missing.
 Include relevant URLs when they materially help the next step.""",
-                tools = emptyList(),
-                context = context,
-                toolFilterProfile = ToolFilterProfileStore.nothingProfile(),
-                listeners = emptyList(),
+                    listeners = emptyList(),
+                    userInteraction = interactionPort
+                ),
+                policies = policies,
+                tools = ToolContext(
+                    profile = ToolFilterProfileStore.nothingProfile(),
+                    tools = emptyList()
+                )
             )
         )
     }

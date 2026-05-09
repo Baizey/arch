@@ -10,13 +10,18 @@ import dev.langchain4j.model.chat.listener.ChatModelResponseContext
 import kotlinx.serialization.Serializable
 import org.baizey.commands.utils.ModelSelection
 import org.baizey.commands.utils.ModelSelectionResult
-import org.baizey.harness.policy.PolicyCollection
 import org.baizey.harness.policy.UserGitPolicyLogic
 import org.baizey.harness.policy.UserPathPolicyLogic
-import org.baizey.runtime.AgentRunInterruptedException
 import org.baizey.runtime.AgentRuntime
 import org.baizey.runtime.ToolFilterProfile
+import org.baizey.runtime.ToolFilterProfileStore
+import org.baizey.runtime.agentic.instance.AgenticInstanceContext
+import org.baizey.runtime.agentic.instance.CoreContext
+import org.baizey.runtime.agentic.instance.PolicyContext
+import org.baizey.runtime.agentic.instance.ProviderType
+import org.baizey.runtime.agentic.instance.exceptions.AgentRunInterruptedException
 import org.baizey.runtime.agentic.instance.SystemPrompt
+import org.baizey.runtime.agentic.instance.ToolContext
 import java.util.ArrayDeque
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
@@ -97,10 +102,10 @@ interface HarnessRuntime {
 
 class HarnessSession(
     interactionPort: HarnessInteractionPort,
-    runtimeFactory: (HarnessContext, () -> Boolean, () -> List<ChatModelListener>, () -> Int, () -> ToolFilterProfile?) -> HarnessRuntime =
-        { toolContext, shouldInterruptBeforeToolExecution, listenersProvider, toolFilterRevisionProvider, toolFilterProfileProvider ->
+    runtimeFactory: (AgenticInstanceContext, () -> Boolean, () -> List<ChatModelListener>, () -> Int, () -> ToolFilterProfile?) -> HarnessRuntime =
+        { agentContext, shouldInterruptBeforeToolExecution, listenersProvider, toolFilterRevisionProvider, toolFilterProfileProvider ->
             AgentRuntime(
-                agentContext = toolContext,
+                agentContext = agentContext,
                 shouldInterruptBeforeToolExecution = shouldInterruptBeforeToolExecution,
                 listenersProvider = listenersProvider,
                 toolFilterRevisionProvider = toolFilterRevisionProvider,
@@ -108,11 +113,21 @@ class HarnessSession(
             )
         }
 ) {
-    private val toolContext = HarnessContext(
-        interactionPort = interactionPort,
-        policies = PolicyCollection(
+    private val agentContext = AgenticInstanceContext(
+        core = CoreContext(
+            systemPrompt = "",
+            type = ProviderType.OLLAMA,
+            modelName = "unselected",
+            listeners = emptyList(),
+            userInteraction = interactionPort
+        ),
+        policies = PolicyContext(
             git = UserGitPolicyLogic(interactionPort),
             path = UserPathPolicyLogic(interactionPort)
+        ),
+        tools = ToolContext(
+            profile = ToolFilterProfileStore.everythingProfile(),
+            tools = emptyList()
         )
     )
     private val lock = Any()
@@ -121,7 +136,7 @@ class HarnessSession(
     private val activity = mutableListOf<HarnessActivityEntry>()
     private val pendingMessages = ArrayDeque<PendingHarnessMessage>()
     private val runtime = runtimeFactory(
-        toolContext,
+        agentContext,
         ::shouldInterruptCurrentRun,
         ::buildListeners,
         ::currentToolFilterRevision,
