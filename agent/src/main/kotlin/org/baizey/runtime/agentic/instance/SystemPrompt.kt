@@ -1,7 +1,7 @@
 package org.baizey.runtime.agentic.instance
 
 import java.nio.file.Paths
-import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
 
 object SystemPrompt {
@@ -91,7 +91,7 @@ private data class LaunchContext(
                     System.getProperty("os.version")?.takeIf { it.isNotBlank() }
                 ).joinToString(" ").ifBlank { "unknown" },
                 shell = detectShell(),
-                localDate = LocalDate.now(zoneId).toString(),
+                localDate = LocalDateTime.now(zoneId).toString(),
                 timezone = zoneId.id
             )
         }
