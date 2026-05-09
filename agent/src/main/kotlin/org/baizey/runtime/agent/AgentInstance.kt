@@ -4,6 +4,7 @@ import dev.langchain4j.mcp.McpToolProvider
 import dev.langchain4j.model.chat.listener.ChatModelListener
 import org.baizey.harness.HarnessContext
 import org.baizey.runtime.ToolFilterProfile
+import org.baizey.runtime.agentic.instance.ProviderType
 
 interface AgentInstance {
     companion object {

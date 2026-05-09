@@ -9,6 +9,7 @@ import org.baizey.runtime.AgentRunInterruptedException
 import org.baizey.runtime.AppConfig
 import org.baizey.runtime.Assistant
 import org.baizey.runtime.ToolFilterProfile
+import org.baizey.runtime.agentic.instance.ProviderType
 import java.time.Duration
 
 class OpenAiAgentInstance(

@@ -4,7 +4,7 @@ import dev.langchain4j.model.chat.listener.ChatModelListener
 import org.baizey.commands.utils.ModelSelection
 import org.baizey.harness.HarnessContext
 import org.baizey.harness.HarnessRuntime
-import org.baizey.harness.SystemPrompt
+import org.baizey.runtime.agentic.instance.SystemPrompt
 import org.baizey.harness.tools.AgentTools
 import org.baizey.runtime.agent.AgentConfig
 import org.baizey.runtime.agent.AgentInstance

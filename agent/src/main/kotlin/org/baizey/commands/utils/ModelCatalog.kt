@@ -9,7 +9,7 @@ import org.baizey.runtime.ErrorLog
 import org.baizey.runtime.OpenAiConfig
 import org.baizey.runtime.OllamaConfig
 import org.baizey.runtime.ProviderConfig
-import org.baizey.runtime.agent.ProviderType
+import org.baizey.runtime.agentic.instance.ProviderType
 import org.baizey.utils.IO.json
 import java.net.URI
 import java.net.http.HttpClient

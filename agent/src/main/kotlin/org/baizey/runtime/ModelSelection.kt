@@ -1,6 +1,6 @@
 package org.baizey.commands.utils
 
-import org.baizey.runtime.agent.ProviderType
+import org.baizey.runtime.agentic.instance.ProviderType
 
 object ModelSelection {
     const val DEFAULT_MODEL = "qwen3.6:27b"

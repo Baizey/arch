@@ -15,7 +15,7 @@ import org.baizey.harness.tools.search.WebSearchResponse
 import org.baizey.runtime.ToolFilterProfileStore
 import org.baizey.runtime.agent.AgentConfig
 import org.baizey.runtime.agent.AgentInstance
-import org.baizey.runtime.agent.ProviderType
+import org.baizey.runtime.agentic.instance.ProviderType
 
 internal class CurrentModelContentSummarizer : ContentSummarizer {
     private val interactionPort = object : HarnessInteractionPort {

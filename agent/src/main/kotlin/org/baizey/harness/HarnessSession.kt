@@ -16,6 +16,7 @@ import org.baizey.harness.policy.UserPathPolicyLogic
 import org.baizey.runtime.AgentRunInterruptedException
 import org.baizey.runtime.AgentRuntime
 import org.baizey.runtime.ToolFilterProfile
+import org.baizey.runtime.agentic.instance.SystemPrompt
 import java.util.ArrayDeque
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong

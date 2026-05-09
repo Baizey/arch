@@ -1,16 +1,16 @@
 package org.baizey.harness.tools.fs
 
-import org.baizey.harness.HarnessContext
+import org.baizey.harness.policy.PathPolicyLogic
 
 internal object FsTools {
-    fun create(context: HarnessContext): List<Any> = listOf(
-        InspectPathAccessTool(context.pathPolicyLogic),
-        ListDirectoryTool(context.pathPolicyLogic),
-        SearchFilesTool(context.pathPolicyLogic),
-        ReadFileTool(context.pathPolicyLogic),
-        EditFileTool(context.pathPolicyLogic),
-        WriteFileTool(context.pathPolicyLogic),
-        MoveOrCopyPathTool(context.pathPolicyLogic),
-        DeletePathTool(context.pathPolicyLogic)
+    fun create(context: PathPolicyLogic): List<Any> = listOf(
+        InspectPathAccessTool(context),
+        ListDirectoryTool(context),
+        SearchFilesTool(context),
+        ReadFileTool(context),
+        EditFileTool(context),
+        WriteFileTool(context),
+        MoveOrCopyPathTool(context),
+        DeletePathTool(context)
     )
 }

@@ -1,17 +1,17 @@
 package org.baizey.harness.tools.git
 
-import org.baizey.harness.HarnessContext
+import org.baizey.harness.policy.GitPolicyLogic
 
 internal object GitTools {
-    fun create(context: HarnessContext): List<Any> = listOf(
-        GitStatusTool(context.gitPolicyLogic),
-        GitAddTool(context.gitPolicyLogic),
-        GitCommitTool(context.gitPolicyLogic),
-        GitPushTool(context.gitPolicyLogic),
-        GitPullTool(context.gitPolicyLogic),
-        GitFetchTool(context.gitPolicyLogic),
-        GitDiffTool(context.gitPolicyLogic),
-        GitLogTool(context.gitPolicyLogic),
-        GitCheckoutTool(context.gitPolicyLogic)
+    fun create(context: GitPolicyLogic): List<Any> = listOf(
+        GitStatusTool(context),
+        GitAddTool(context),
+        GitCommitTool(context),
+        GitPushTool(context),
+        GitPullTool(context),
+        GitFetchTool(context),
+        GitDiffTool(context),
+        GitLogTool(context),
+        GitCheckoutTool(context)
     )
 }

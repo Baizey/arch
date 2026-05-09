@@ -2,6 +2,7 @@ package org.baizey.harness
 
 import org.baizey.harness.policy.path.FsAccessType
 import org.baizey.harness.tools.fs.FsToolTestSupport
+import org.baizey.runtime.agentic.instance.SystemPrompt
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir

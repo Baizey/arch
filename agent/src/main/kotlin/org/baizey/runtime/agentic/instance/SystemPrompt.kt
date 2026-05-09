@@ -1,5 +1,6 @@
-package org.baizey.harness
+package org.baizey.runtime.agentic.instance
 
+import org.baizey.harness.HarnessContext
 import java.nio.file.Paths
 import java.time.LocalDate
 import java.time.ZoneId
