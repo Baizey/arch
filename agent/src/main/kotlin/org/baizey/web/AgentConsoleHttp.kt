@@ -9,6 +9,9 @@ import org.baizey.harness.HarnessSupportedModel
 import org.baizey.harness.policy.shared.PolicyLifetime
 import org.baizey.runtime.ActivityFilterProfile
 import org.baizey.runtime.ActivityFilterProfileSnapshot
+import org.baizey.runtime.McpToolFilterCatalogSnapshot
+import org.baizey.runtime.McpToolFilterProfile
+import org.baizey.runtime.McpToolFilterProfileSnapshot
 import org.baizey.runtime.ToolFilterCatalogSnapshot
 import org.baizey.runtime.ToolFilterProfile
 import org.baizey.runtime.ToolFilterProfileSnapshot
@@ -75,7 +78,9 @@ internal fun buildStateJson(
     pendingPermissionRequests: List<PendingPermissionRequestView>,
     filterProfiles: ActivityFilterProfileSnapshot,
     toolFilterProfiles: ToolFilterProfileSnapshot,
-    toolFilterCatalog: ToolFilterCatalogSnapshot
+    toolFilterCatalog: ToolFilterCatalogSnapshot,
+    mcpToolFilterProfiles: McpToolFilterProfileSnapshot,
+    mcpToolFilterCatalog: McpToolFilterCatalogSnapshot
 ): JsonObject {
     return buildJsonObject {
         put("session", session.toJson())
@@ -107,6 +112,8 @@ internal fun buildStateJson(
         put("filterProfiles", filterProfiles.toJson())
         put("toolFilterProfiles", toolFilterProfiles.toJson())
         put("toolFilterCatalog", toolFilterCatalog.toJson())
+        put("mcpToolFilterProfiles", mcpToolFilterProfiles.toJson())
+        put("mcpToolFilterCatalog", mcpToolFilterCatalog.toJson())
     }
 }
 
@@ -208,6 +215,29 @@ internal fun ToolFilterProfile.toJson(): JsonObject {
     }
 }
 
+internal fun McpToolFilterProfileSnapshot.toJson(): JsonObject {
+    return buildJsonObject {
+        putString("activeProfileId", activeProfileId)
+        put("profiles", buildJsonArray { profiles.forEach { add(it.toJson()) } })
+    }
+}
+
+internal fun McpToolFilterProfile.toJson(): JsonObject {
+    return buildJsonObject {
+        putString("id", id)
+        putString("name", name)
+        putBoolean("isBuiltIn", isBuiltIn)
+        put(
+            "rules",
+            buildJsonObject {
+                rules.forEach { (ruleTarget, mode) ->
+                    putString(ruleTarget, mode.name)
+                }
+            }
+        )
+    }
+}
+
 internal fun ToolFilterCatalogSnapshot.toJson(): JsonObject {
     return buildJsonObject {
         put(
@@ -249,6 +279,43 @@ internal fun ToolFilterCatalogSnapshot.toJson(): JsonObject {
                             putString("toolName", tool.toolName)
                             putString("groupId", tool.groupId)
                             tool.subgroupId?.let { putString("subgroupId", it) }
+                            putString("label", tool.label)
+                            putString("description", tool.description)
+                        }
+                    )
+                }
+            }
+        )
+    }
+}
+
+internal fun McpToolFilterCatalogSnapshot.toJson(): JsonObject {
+    return buildJsonObject {
+        put(
+            "servers",
+            buildJsonArray {
+                servers.forEach { server ->
+                    add(
+                        buildJsonObject {
+                            putString("id", server.id)
+                            putString("label", server.label)
+                            putString("description", server.description)
+                            putBoolean("isAvailable", server.isAvailable)
+                            server.error?.let { putString("error", it) }
+                        }
+                    )
+                }
+            }
+        )
+        put(
+            "tools",
+            buildJsonArray {
+                tools.forEach { tool ->
+                    add(
+                        buildJsonObject {
+                            putString("id", tool.id)
+                            putString("toolName", tool.toolName)
+                            putString("serverId", tool.serverId)
                             putString("label", tool.label)
                             putString("description", tool.description)
                         }

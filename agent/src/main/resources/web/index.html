@@ -83,46 +83,104 @@
                 <div class="panel-header panel-header-large">
                     <div>
                         <h2>Tool Filters</h2>
-                        <p>Build saved tool-availability profiles and switch which built-in tools the agent can
-                            call.</p>
+                        <p>Build saved tool-availability profiles for built-in tools and configured MCP
+                            servers.</p>
                     </div>
                 </div>
 
-                <div class="filters-body">
-                    <div class="filters-toolbar">
-                        <label class="control control-card">
-                            <span class="control-label">Edit profile</span>
-                            <select id="toolFilterEditorSelect"></select>
-                        </label>
-
-                        <label class="control control-card">
-                            <span class="control-label">New profile</span>
-                            <input id="newToolFilterProfileNameInput" type="text" placeholder="Concise profile name">
-                        </label>
-
-                        <button id="createToolFilterProfileButton" type="button">Create from selected</button>
-                    </div>
-
-                    <section class="filter-editor-card">
-                        <div class="filter-editor-header">
+                <div class="filters-body tool-filter-sections">
+                    <section class="tool-filter-section tool-filter-section-built-in">
+                        <div class="tool-filter-section-header">
                             <div>
-                                <span class="summary-label">Profile details</span>
-                                <strong id="toolFilterEditorHeadline">Profile</strong>
-                                <p id="toolFilterEditorHint"></p>
-                            </div>
-
-                            <div class="filter-editor-actions">
-                                <button id="saveToolFilterProfileButton" type="button">Save changes</button>
-                                <button id="deleteToolFilterProfileButton" class="ghost" type="button">Delete</button>
+                                <span class="summary-label">Built-in</span>
+                                <strong>Runtime tools</strong>
+                                <p>Filter the first-party tools shipped with the harness.</p>
                             </div>
                         </div>
 
-                        <label class="field">
-                            <span class="field-label">Profile name</span>
-                            <input id="toolFilterProfileNameInput" type="text">
-                        </label>
+                        <div class="filters-toolbar">
+                            <label class="control control-card">
+                                <span class="control-label">Edit profile</span>
+                                <select id="toolFilterEditorSelect"></select>
+                            </label>
 
-                        <div id="toolFilterRuleList" class="filter-rule-list"></div>
+                            <label class="control control-card">
+                                <span class="control-label">New profile</span>
+                                <input id="newToolFilterProfileNameInput" type="text"
+                                       placeholder="Concise profile name">
+                            </label>
+
+                            <button id="createToolFilterProfileButton" type="button">Create from selected</button>
+                        </div>
+
+                        <section class="filter-editor-card">
+                            <div class="filter-editor-header">
+                                <div>
+                                    <span class="summary-label">Profile details</span>
+                                    <strong id="toolFilterEditorHeadline">Profile</strong>
+                                    <p id="toolFilterEditorHint"></p>
+                                </div>
+
+                                <div class="filter-editor-actions">
+                                    <button id="saveToolFilterProfileButton" type="button">Save changes</button>
+                                    <button id="deleteToolFilterProfileButton" class="ghost" type="button">Delete</button>
+                                </div>
+                            </div>
+
+                            <label class="field">
+                                <span class="field-label">Profile name</span>
+                                <input id="toolFilterProfileNameInput" type="text">
+                            </label>
+
+                            <div id="toolFilterRuleList" class="filter-rule-list"></div>
+                        </section>
+                    </section>
+
+                    <section class="tool-filter-section tool-filter-section-mcp">
+                        <div class="tool-filter-section-header">
+                            <div>
+                                <span class="summary-label">Custom / MCP</span>
+                                <strong>Configured servers</strong>
+                                <p>Filter dynamically discovered tools by server and tool name.</p>
+                            </div>
+                        </div>
+
+                        <div class="filters-toolbar">
+                            <label class="control control-card">
+                                <span class="control-label">Edit profile</span>
+                                <select id="mcpToolFilterEditorSelect"></select>
+                            </label>
+
+                            <label class="control control-card">
+                                <span class="control-label">New profile</span>
+                                <input id="newMcpToolFilterProfileNameInput" type="text"
+                                       placeholder="Concise profile name">
+                            </label>
+
+                            <button id="createMcpToolFilterProfileButton" type="button">Create from selected</button>
+                        </div>
+
+                        <section class="filter-editor-card">
+                            <div class="filter-editor-header">
+                                <div>
+                                    <span class="summary-label">Profile details</span>
+                                    <strong id="mcpToolFilterEditorHeadline">Profile</strong>
+                                    <p id="mcpToolFilterEditorHint"></p>
+                                </div>
+
+                                <div class="filter-editor-actions">
+                                    <button id="saveMcpToolFilterProfileButton" type="button">Save changes</button>
+                                    <button id="deleteMcpToolFilterProfileButton" class="ghost" type="button">Delete</button>
+                                </div>
+                            </div>
+
+                            <label class="field">
+                                <span class="field-label">Profile name</span>
+                                <input id="mcpToolFilterProfileNameInput" type="text">
+                            </label>
+
+                            <div id="mcpToolFilterRuleList" class="filter-rule-list"></div>
+                        </section>
                     </section>
                 </div>
             </section>
@@ -156,6 +214,10 @@
                 <label class="control control-card model-control">
                     <span class="control-label">Tool Filter</span>
                     <select id="toolFilterProfileSelect"></select>
+                </label>
+                <label class="control control-card model-control">
+                    <span class="control-label">MCP Filter</span>
+                    <select id="mcpToolFilterProfileSelect"></select>
                 </label>
                 <label class="control control-card model-control">
                     <span class="control-label">Model</span>

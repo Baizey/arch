@@ -9,6 +9,7 @@ import org.baizey.harness.HarnessSession
 import org.baizey.runtime.ActivityFilterCategory
 import org.baizey.runtime.ActivityFilterMode
 import org.baizey.runtime.ActivityFilterProfileStore
+import org.baizey.runtime.McpToolFilterProfileStore
 import org.baizey.runtime.ToolFilterMode
 import org.baizey.runtime.ToolFilterProfileStore
 import java.util.concurrent.atomic.AtomicBoolean
@@ -25,6 +26,7 @@ internal class AgentConsoleServer(
     private val shutdownRequested = AtomicBoolean(false)
     private val filterProfiles = ActivityFilterProfileStore()
     private val toolFilterProfiles = ToolFilterProfileStore()
+    private val mcpToolFilterProfiles = McpToolFilterProfileStore()
 
     private val router = httpRouter {
         get("/") { exchange, _ ->
@@ -53,7 +55,9 @@ internal class AgentConsoleServer(
                     pendingPermissionRequests = interactionPort.pendingPermissionRequests(),
                     filterProfiles = filterProfiles.snapshot(),
                     toolFilterProfiles = toolFilterProfiles.snapshot(),
-                    toolFilterCatalog = toolFilterProfiles.catalogSnapshot()
+                    toolFilterCatalog = toolFilterProfiles.catalogSnapshot(),
+                    mcpToolFilterProfiles = mcpToolFilterProfiles.snapshot(),
+                    mcpToolFilterCatalog = mcpToolFilterProfiles.catalogSnapshot()
                 )
             )
         }
@@ -226,6 +230,73 @@ internal class AgentConsoleServer(
                 )
             )
         }
+        post("/api/mcp-tool-filter-profiles/select") { exchange, _ ->
+            val body = exchange.readJsonObject()
+            val ok = mcpToolFilterProfiles.selectProfile(body.string("profileId").orEmpty())
+            if (ok) {
+                session.setMcpToolFilterProfile(mcpToolFilterProfiles.activeProfile())
+            }
+            exchange.respondJson(
+                actionJson(
+                    ok = ok,
+                    message = if (ok) null else "Unknown MCP filter profile."
+                )
+            )
+        }
+        post("/api/mcp-tool-filter-profiles") { exchange, _ ->
+            val body = exchange.readJsonObject()
+            val created = mcpToolFilterProfiles.createProfile(
+                name = body.string("name").orEmpty(),
+                baseProfileId = body.string("baseProfileId")
+            )
+            exchange.respondJson(
+                buildJsonObject {
+                    putBoolean("ok", created != null)
+                    created?.let { profile ->
+                        putString("profileId", profile.id)
+                    }
+                    if (created == null) {
+                        putString("message", "Profile name cannot be empty.")
+                    }
+                }
+            )
+        }
+        post("/api/mcp-tool-filter-profiles/{id}") { exchange, pathParams ->
+            val body = exchange.readJsonObject()
+            val rules = body.objectValue("rules")?.entries?.mapNotNull { entry ->
+                val mode = entry.value.jsonPrimitive.contentOrNull?.let { raw ->
+                    enumValues<ToolFilterMode>().firstOrNull { it.name == raw }
+                } ?: return@mapNotNull null
+                entry.key to mode
+            }?.toMap()
+
+            val updated = mcpToolFilterProfiles.updateProfile(
+                profileId = pathParams.getValue("id"),
+                name = body.string("name"),
+                rules = rules
+            )
+            if (updated != null && mcpToolFilterProfiles.snapshot().activeProfileId == updated.id) {
+                session.setMcpToolFilterProfile(mcpToolFilterProfiles.activeProfile())
+            }
+            exchange.respondJson(
+                actionJson(
+                    ok = updated != null,
+                    message = if (updated == null) "Unable to update MCP filter profile." else null
+                )
+            )
+        }
+        post("/api/mcp-tool-filter-profiles/{id}/delete") { exchange, pathParams ->
+            val ok = mcpToolFilterProfiles.deleteProfile(pathParams.getValue("id"))
+            if (ok) {
+                session.setMcpToolFilterProfile(mcpToolFilterProfiles.activeProfile())
+            }
+            exchange.respondJson(
+                actionJson(
+                    ok = ok,
+                    message = if (ok) null else "Unable to delete MCP filter profile."
+                )
+            )
+        }
         post("/api/shutdown") { exchange, _ ->
             exchange.respondJson(
                 actionJson(
@@ -271,6 +342,7 @@ internal class AgentConsoleServer(
 
     init {
         session.setToolFilterProfile(toolFilterProfiles.activeProfile())
+        session.setMcpToolFilterProfile(mcpToolFilterProfiles.activeProfile())
     }
 
     fun handle(exchange: HttpExchange) {

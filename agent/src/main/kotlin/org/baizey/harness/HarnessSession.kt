@@ -13,6 +13,8 @@ import org.baizey.commands.utils.ModelSelectionResult
 import org.baizey.harness.policy.UserGitPolicyLogic
 import org.baizey.harness.policy.UserPathPolicyLogic
 import org.baizey.runtime.AgentRuntime
+import org.baizey.runtime.McpToolFilterProfile
+import org.baizey.runtime.McpToolFilterProfileStore
 import org.baizey.runtime.ToolFilterProfile
 import org.baizey.runtime.ToolFilterProfileStore
 import org.baizey.runtime.agentic.instance.AgenticInstanceContext
@@ -102,14 +104,15 @@ interface HarnessRuntime {
 
 class HarnessSession(
     interactionPort: HarnessInteractionPort,
-    runtimeFactory: (AgenticInstanceContext, () -> Boolean, () -> List<ChatModelListener>, () -> Int, () -> ToolFilterProfile?) -> HarnessRuntime =
-        { agentContext, shouldInterruptBeforeToolExecution, listenersProvider, toolFilterRevisionProvider, toolFilterProfileProvider ->
+    runtimeFactory: (AgenticInstanceContext, () -> Boolean, () -> List<ChatModelListener>, () -> Int, () -> ToolFilterProfile?, () -> McpToolFilterProfile?) -> HarnessRuntime =
+        { agentContext, shouldInterruptBeforeToolExecution, listenersProvider, toolFilterRevisionProvider, toolFilterProfileProvider, mcpToolFilterProfileProvider ->
             AgentRuntime(
                 agentContext = agentContext,
                 shouldInterruptBeforeToolExecution = shouldInterruptBeforeToolExecution,
                 listenersProvider = listenersProvider,
                 toolFilterRevisionProvider = toolFilterRevisionProvider,
-                toolFilterProfileProvider = toolFilterProfileProvider
+                toolFilterProfileProvider = toolFilterProfileProvider,
+                mcpToolFilterProfileProvider = mcpToolFilterProfileProvider
             )
         }
 ) {
@@ -127,6 +130,7 @@ class HarnessSession(
         ),
         tools = ToolContext(
             profile = ToolFilterProfileStore.everythingProfile(),
+            mcpProfile = McpToolFilterProfileStore.everythingProfile(),
             tools = emptyList()
         )
     )
@@ -140,7 +144,8 @@ class HarnessSession(
         ::shouldInterruptCurrentRun,
         ::buildListeners,
         ::currentToolFilterRevision,
-        ::currentToolFilterProfile
+        ::currentToolFilterProfile,
+        ::currentMcpToolFilterProfile
     )
 
     @Volatile
@@ -163,6 +168,9 @@ class HarnessSession(
 
     @Volatile
     private var toolFilterProfile: ToolFilterProfile? = null
+
+    @Volatile
+    private var mcpToolFilterProfile: McpToolFilterProfile? = null
 
     init {
         recordActivity(
@@ -289,6 +297,18 @@ class HarnessSession(
             type = HarnessActivityType.CONTROL,
             title = "Tool filter switched to ${profile.name}",
             detail = "Built-in tool availability will refresh on the next model turn."
+        )
+    }
+
+    fun setMcpToolFilterProfile(profile: McpToolFilterProfile) {
+        synchronized(lock) {
+            mcpToolFilterProfile = profile
+            toolFilterRevision++
+        }
+        recordActivity(
+            type = HarnessActivityType.CONTROL,
+            title = "MCP filter switched to ${profile.name}",
+            detail = "MCP tool availability will refresh on the next model turn."
         )
     }
 
@@ -517,6 +537,8 @@ If you have a final result for the user provide it, or ask any questions you nee
     private fun currentToolFilterRevision(): Int = toolFilterRevision
 
     private fun currentToolFilterProfile(): ToolFilterProfile? = toolFilterProfile
+
+    private fun currentMcpToolFilterProfile(): McpToolFilterProfile? = mcpToolFilterProfile
 
     private fun consumeInterruptIfPendingMessageExists(): Boolean {
         synchronized(lock) {

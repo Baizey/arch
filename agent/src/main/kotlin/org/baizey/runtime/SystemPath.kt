@@ -17,6 +17,7 @@ object SystemPath {
     val gitPolicyFile = configDir.resolve("git_policy.json")
     val activityFilterProfilesFile = configDir.resolve("activity_filter_profiles.json")
     val toolFilterProfilesFile = configDir.resolve("tool_filter_profiles.json")
+    val mcpToolFilterProfilesFile = configDir.resolve("mcp_tool_filter_profiles.json")
 
     private val logDir = disallowBotDir.resolve("logs")
     val errorLogFile = logDir.resolve("errors.log")

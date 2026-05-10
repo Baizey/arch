@@ -10,6 +10,9 @@
  * @typedef {{ id: string, groupId: string, label: string, description: string }} ToolFilterSubgroup
  * @typedef {{ id: string, toolName: string, groupId: string, subgroupId?: string, label: string, description: string }} ToolFilterTool
  * @typedef {{ groups: ToolFilterGroup[], subgroups: ToolFilterSubgroup[], tools: ToolFilterTool[] }} ToolFilterCatalog
+ * @typedef {{ id: string, label: string, description: string, isAvailable: boolean, error?: string }} McpToolFilterServer
+ * @typedef {{ id: string, toolName: string, serverId: string, label: string, description: string }} McpToolFilterTool
+ * @typedef {{ servers: McpToolFilterServer[], tools: McpToolFilterTool[] }} McpToolFilterCatalog
  * @typedef {{ id: string, name: string, provider: string, providerLabel: string }} SupportedModel
  * @typedef {{
  *   running: boolean,
@@ -27,7 +30,9 @@
  *   pendingPermissions: PendingPermission[],
  *   filterProfiles: FilterProfileState,
  *   toolFilterProfiles: FilterProfileState,
- *   toolFilterCatalog: ToolFilterCatalog
+ *   toolFilterCatalog: ToolFilterCatalog,
+ *   mcpToolFilterProfiles: FilterProfileState,
+ *   mcpToolFilterCatalog: McpToolFilterCatalog
  * }} HarnessState
  */
 
@@ -41,6 +46,7 @@ const filtersTabButtonEl = document.getElementById("filtersTabButton");
 const toolFiltersTabButtonEl = document.getElementById("toolFiltersTabButton");
 const filterProfileSelectEl = document.getElementById("filterProfileSelect");
 const toolFilterProfileSelectEl = document.getElementById("toolFilterProfileSelect");
+const mcpToolFilterProfileSelectEl = document.getElementById("mcpToolFilterProfileSelect");
 const modelSelectEl = document.getElementById("modelSelect");
 const contextCardEl = document.getElementById("contextCard");
 const activeContextSizeValueEl = document.getElementById("activeContextSizeValue");
@@ -70,6 +76,15 @@ const toolFilterProfileNameInputEl = document.getElementById("toolFilterProfileN
 const saveToolFilterProfileButtonEl = document.getElementById("saveToolFilterProfileButton");
 const deleteToolFilterProfileButtonEl = document.getElementById("deleteToolFilterProfileButton");
 const toolFilterRuleListEl = document.getElementById("toolFilterRuleList");
+const mcpToolFilterEditorSelectEl = document.getElementById("mcpToolFilterEditorSelect");
+const newMcpToolFilterProfileNameInputEl = document.getElementById("newMcpToolFilterProfileNameInput");
+const createMcpToolFilterProfileButtonEl = document.getElementById("createMcpToolFilterProfileButton");
+const mcpToolFilterEditorHeadlineEl = document.getElementById("mcpToolFilterEditorHeadline");
+const mcpToolFilterEditorHintEl = document.getElementById("mcpToolFilterEditorHint");
+const mcpToolFilterProfileNameInputEl = document.getElementById("mcpToolFilterProfileNameInput");
+const saveMcpToolFilterProfileButtonEl = document.getElementById("saveMcpToolFilterProfileButton");
+const deleteMcpToolFilterProfileButtonEl = document.getElementById("deleteMcpToolFilterProfileButton");
+const mcpToolFilterRuleListEl = document.getElementById("mcpToolFilterRuleList");
 
 const HTTP_METHOD = Object.freeze({
   POST: "POST",
@@ -165,10 +180,13 @@ let selectedFilterEditorProfileId = "";
 let newFilterProfileName = "";
 let selectedToolFilterEditorProfileId = "";
 let newToolFilterProfileName = "";
+let selectedMcpToolFilterEditorProfileId = "";
+let newMcpToolFilterProfileName = "";
 const askDrafts = new Map();
 const permissionDrafts = new Map();
 const filterProfileDrafts = new Map();
 const toolFilterProfileDrafts = new Map();
+const mcpToolFilterProfileDrafts = new Map();
 const feedExpansionState = new Map();
 let isSubmittingMessage = false;
 let isClearingContext = false;
@@ -272,6 +290,18 @@ function renderControls() {
     (profile) => profile.id,
     (profile) => profile.name
   );
+  syncSelectOptions(
+    mcpToolFilterProfileSelectEl,
+    latestState.mcpToolFilterProfiles.profiles,
+    (profile) => profile.id,
+    (profile) => profile.name
+  );
+  syncSelectOptions(
+    mcpToolFilterEditorSelectEl,
+    latestState.mcpToolFilterProfiles.profiles,
+    (profile) => profile.id,
+    (profile) => profile.name
+  );
 
   modelSelectEl.value = session.selectedModelId;
   modelSelectEl.disabled = session.supportedModels.length === 0;
@@ -279,6 +309,8 @@ function renderControls() {
   filterEditorSelectEl.value = selectedFilterEditorProfileId;
   toolFilterProfileSelectEl.value = latestState.toolFilterProfiles.activeProfileId;
   toolFilterEditorSelectEl.value = selectedToolFilterEditorProfileId;
+  mcpToolFilterProfileSelectEl.value = latestState.mcpToolFilterProfiles.activeProfileId;
+  mcpToolFilterEditorSelectEl.value = selectedMcpToolFilterEditorProfileId;
   clearContextButtonEl.disabled = isClearingContext;
 }
 
@@ -744,6 +776,11 @@ function renderFilterView() {
 }
 
 function renderToolFilterView() {
+  renderBuiltInToolFilterView();
+  renderMcpToolFilterView();
+}
+
+function renderBuiltInToolFilterView() {
   const selectedProfile = getSelectedToolFilterEditorProfile();
   if (!selectedProfile || !latestState?.toolFilterCatalog) {
     return;
@@ -828,6 +865,93 @@ function renderToolFilterView() {
       );
     });
   });
+}
+
+function renderMcpToolFilterView() {
+  const selectedProfile = getSelectedMcpToolFilterEditorProfile();
+  if (!selectedProfile || !latestState?.mcpToolFilterCatalog) {
+    return;
+  }
+
+  const draft = getMcpToolFilterProfileDraft(selectedProfile);
+  const isBuiltIn = selectedProfile.isBuiltIn;
+  const hasChanges = hasMcpToolFilterProfileChanges(selectedProfile, draft);
+  const catalog = latestState.mcpToolFilterCatalog;
+
+  mcpToolFilterEditorHeadlineEl.textContent = selectedProfile.name;
+  setOptionalText(
+    mcpToolFilterEditorHintEl,
+    isBuiltIn
+      ? "Built-in profiles cannot be edited. Duplicate one to create a custom MCP starting point."
+      : "Custom profiles are stored locally and control which MCP server tools the agent may call."
+  );
+
+  mcpToolFilterProfileNameInputEl.value = draft.name;
+  mcpToolFilterProfileNameInputEl.disabled = isBuiltIn;
+  saveMcpToolFilterProfileButtonEl.disabled = isBuiltIn || !hasChanges;
+  deleteMcpToolFilterProfileButtonEl.disabled = isBuiltIn;
+  createMcpToolFilterProfileButtonEl.disabled = !newMcpToolFilterProfileName.trim();
+
+  mcpToolFilterRuleListEl.replaceChildren();
+  if (!catalog.servers.length) {
+    mcpToolFilterRuleListEl.appendChild(createEmptyFilterRule("No MCP servers configured.", "Add MCP servers to the config to filter their tools here."));
+    return;
+  }
+
+  catalog.servers.forEach((server) => {
+    const serverTools = catalog.tools.filter((tool) => tool.serverId === server.id);
+    const descriptionParts = [server.description || "MCP server"];
+    if (!server.isAvailable && server.error) {
+      descriptionParts.push(`Unavailable: ${server.error}`);
+    }
+    if (!serverTools.length) {
+      descriptionParts.push("No tools were discovered for this server.");
+    }
+
+    mcpToolFilterRuleListEl.appendChild(
+      renderToolRuleSection({
+        ruleTargetIds: getMcpRuleTargetIdsForServer(server.id),
+        title: server.label,
+        description: descriptionParts.join(" "),
+        draft,
+        isBuiltIn,
+        allowedModes: TOOL_FILTER_GROUP_MODES,
+      })
+    );
+
+    serverTools.forEach((tool) => {
+      mcpToolFilterRuleListEl.appendChild(
+        renderToolRuleSection({
+          ruleTargetIds: [tool.id],
+          title: tool.label,
+          description: `${tool.description} Tool name: ${tool.toolName}.`,
+          draft,
+          isBuiltIn,
+          isNested: true,
+          isTool: true,
+          allowedModes: TOOL_FILTER_TOOL_MODES,
+        })
+      );
+    });
+  });
+}
+
+function createEmptyFilterRule(title, description) {
+  const rule = document.createElement("article");
+  rule.className = "filter-rule";
+
+  const copy = document.createElement("div");
+  copy.className = "filter-rule-copy";
+
+  const titleEl = document.createElement("strong");
+  titleEl.textContent = title;
+
+  const descriptionEl = document.createElement("p");
+  descriptionEl.textContent = description;
+
+  copy.append(titleEl, descriptionEl);
+  rule.append(copy);
+  return rule;
 }
 
 function renderToolRuleSection({ ruleTargetIds, title, description, draft, isBuiltIn, isNested = false, isTool = false, allowedModes }) {
@@ -1123,6 +1247,14 @@ toolFilterProfileSelectEl.addEventListener("change", async () => {
   await loadState();
 });
 
+mcpToolFilterProfileSelectEl.addEventListener("change", async () => {
+  await requestJson("/api/mcp-tool-filter-profiles/select", {
+    method: HTTP_METHOD.POST,
+    body: JSON.stringify({ profileId: mcpToolFilterProfileSelectEl.value }),
+  });
+  await loadState();
+});
+
 modelSelectEl.addEventListener("change", async () => {
   await requestJson("/api/model", {
     method: HTTP_METHOD.POST,
@@ -1165,6 +1297,11 @@ toolFilterEditorSelectEl.addEventListener("change", () => {
   renderToolFilterView();
 });
 
+mcpToolFilterEditorSelectEl.addEventListener("change", () => {
+  selectedMcpToolFilterEditorProfileId = mcpToolFilterEditorSelectEl.value;
+  renderToolFilterView();
+});
+
 newFilterProfileNameInputEl.addEventListener("input", () => {
   newFilterProfileName = newFilterProfileNameInputEl.value;
   renderFilterView();
@@ -1172,6 +1309,11 @@ newFilterProfileNameInputEl.addEventListener("input", () => {
 
 newToolFilterProfileNameInputEl.addEventListener("input", () => {
   newToolFilterProfileName = newToolFilterProfileNameInputEl.value;
+  renderToolFilterView();
+});
+
+newMcpToolFilterProfileNameInputEl.addEventListener("input", () => {
+  newMcpToolFilterProfileName = newMcpToolFilterProfileNameInputEl.value;
   renderToolFilterView();
 });
 
@@ -1219,6 +1361,28 @@ createToolFilterProfileButtonEl.addEventListener("click", async () => {
   await loadState();
 });
 
+createMcpToolFilterProfileButtonEl.addEventListener("click", async () => {
+  const name = newMcpToolFilterProfileName.trim();
+  if (!name) return;
+
+  const response = await requestJson("/api/mcp-tool-filter-profiles", {
+    method: HTTP_METHOD.POST,
+    body: JSON.stringify({
+      name,
+      baseProfileId: selectedMcpToolFilterEditorProfileId,
+    }),
+  });
+
+  if (!response.ok) {
+    return;
+  }
+
+  newMcpToolFilterProfileName = "";
+  newMcpToolFilterProfileNameInputEl.value = "";
+  selectedMcpToolFilterEditorProfileId = response.profileId || selectedMcpToolFilterEditorProfileId;
+  await loadState();
+});
+
 filterProfileNameInputEl.addEventListener("input", () => {
   const profile = getSelectedFilterEditorProfile();
   if (!profile) return;
@@ -1232,6 +1396,14 @@ toolFilterProfileNameInputEl.addEventListener("input", () => {
   if (!profile) return;
   const draft = getToolFilterProfileDraft(profile);
   draft.name = toolFilterProfileNameInputEl.value;
+  renderToolFilterView();
+});
+
+mcpToolFilterProfileNameInputEl.addEventListener("input", () => {
+  const profile = getSelectedMcpToolFilterEditorProfile();
+  if (!profile) return;
+  const draft = getMcpToolFilterProfileDraft(profile);
+  draft.name = mcpToolFilterProfileNameInputEl.value;
   renderToolFilterView();
 });
 
@@ -1269,6 +1441,23 @@ saveToolFilterProfileButtonEl.addEventListener("click", async () => {
   await loadState();
 });
 
+saveMcpToolFilterProfileButtonEl.addEventListener("click", async () => {
+  const profile = getSelectedMcpToolFilterEditorProfile();
+  if (!profile || profile.isBuiltIn) return;
+  const draft = getMcpToolFilterProfileDraft(profile);
+
+  await requestJson(`/api/mcp-tool-filter-profiles/${profile.id}`, {
+    method: HTTP_METHOD.POST,
+    body: JSON.stringify({
+      name: draft.name.trim(),
+      rules: draft.rules,
+    }),
+  });
+
+  mcpToolFilterProfileDrafts.delete(profile.id);
+  await loadState();
+});
+
 deleteFilterProfileButtonEl.addEventListener("click", async () => {
   const profile = getSelectedFilterEditorProfile();
   if (!profile || profile.isBuiltIn) return;
@@ -1292,6 +1481,19 @@ deleteToolFilterProfileButtonEl.addEventListener("click", async () => {
   });
 
   toolFilterProfileDrafts.delete(profile.id);
+  await loadState();
+});
+
+deleteMcpToolFilterProfileButtonEl.addEventListener("click", async () => {
+  const profile = getSelectedMcpToolFilterEditorProfile();
+  if (!profile || profile.isBuiltIn) return;
+
+  await requestJson(`/api/mcp-tool-filter-profiles/${profile.id}/delete`, {
+    method: HTTP_METHOD.POST,
+    body: JSON.stringify({}),
+  });
+
+  mcpToolFilterProfileDrafts.delete(profile.id);
   await loadState();
 });
 
@@ -1680,6 +1882,16 @@ function getToolFilterProfileDraft(profile) {
   return toolFilterProfileDrafts.get(profile.id);
 }
 
+function getMcpToolFilterProfileDraft(profile) {
+  if (!mcpToolFilterProfileDrafts.has(profile.id)) {
+    mcpToolFilterProfileDrafts.set(profile.id, {
+      name: profile.name,
+      rules: { ...profile.rules },
+    });
+  }
+  return mcpToolFilterProfileDrafts.get(profile.id);
+}
+
 function syncActiveContextSize(state) {
   const nextActiveContextSize = normalizeActiveContextSize(state?.session?.activeContextSize);
   lastKnownActiveContextSize = nextActiveContextSize;
@@ -1690,6 +1902,7 @@ function syncDraftStores() {
   const permissionIds = new Set((latestState?.pendingPermissions || []).map((permission) => permission.id));
   const profileIds = new Set((latestState?.filterProfiles?.profiles || []).map((profile) => profile.id));
   const toolProfileIds = new Set((latestState?.toolFilterProfiles?.profiles || []).map((profile) => profile.id));
+  const mcpToolProfileIds = new Set((latestState?.mcpToolFilterProfiles?.profiles || []).map((profile) => profile.id));
 
   askDrafts.forEach((_, id) => {
     if (!askIds.has(id)) {
@@ -1714,12 +1927,20 @@ function syncDraftStores() {
       toolFilterProfileDrafts.delete(id);
     }
   });
+  mcpToolFilterProfileDrafts.forEach((_, id) => {
+    if (!mcpToolProfileIds.has(id)) {
+      mcpToolFilterProfileDrafts.delete(id);
+    }
+  });
 
   if (!profileIds.has(selectedFilterEditorProfileId)) {
     selectedFilterEditorProfileId = latestState?.filterProfiles?.activeProfileId || "";
   }
   if (!toolProfileIds.has(selectedToolFilterEditorProfileId)) {
     selectedToolFilterEditorProfileId = latestState?.toolFilterProfiles?.activeProfileId || "";
+  }
+  if (!mcpToolProfileIds.has(selectedMcpToolFilterEditorProfileId)) {
+    selectedMcpToolFilterEditorProfileId = latestState?.mcpToolFilterProfiles?.activeProfileId || "";
   }
 }
 
@@ -1750,6 +1971,12 @@ function getSelectedToolFilterEditorProfile() {
   ) || null;
 }
 
+function getSelectedMcpToolFilterEditorProfile() {
+  return latestState?.mcpToolFilterProfiles?.profiles?.find(
+    (profile) => profile.id === selectedMcpToolFilterEditorProfileId
+  ) || null;
+}
+
 function hasFilterProfileChanges(profile, draft) {
   if (draft.name.trim() !== profile.name) {
     return true;
@@ -1771,6 +1998,17 @@ function hasToolFilterProfileChanges(profile, draft) {
   });
 }
 
+function hasMcpToolFilterProfileChanges(profile, draft) {
+  if (draft.name.trim() !== profile.name) {
+    return true;
+  }
+
+  const ruleTargetIds = buildMcpRuleTargetIds();
+  return ruleTargetIds.some((ruleTargetId) => {
+    return (draft.rules[ruleTargetId] || "ENABLED") !== (profile.rules[ruleTargetId] || "ENABLED");
+  });
+}
+
 function buildToolRuleTargetIds() {
   const catalog = latestState?.toolFilterCatalog;
   if (!catalog) {
@@ -1784,6 +2022,18 @@ function buildToolRuleTargetIds() {
   ];
 }
 
+function buildMcpRuleTargetIds() {
+  const catalog = latestState?.mcpToolFilterCatalog;
+  if (!catalog) {
+    return [];
+  }
+
+  return [
+    ...catalog.servers.map((server) => `server:${server.id}`),
+    ...catalog.tools.map((tool) => tool.id),
+  ];
+}
+
 function getToolRuleTargetIdsForGroup(groupId) {
   return (latestState?.toolFilterCatalog?.tools || [])
     .filter((tool) => tool.groupId === groupId)
@@ -1794,6 +2044,15 @@ function getToolRuleTargetIdsForSubgroup(subgroupId) {
   return (latestState?.toolFilterCatalog?.tools || [])
     .filter((tool) => tool.subgroupId === subgroupId)
     .map((tool) => `tool:${tool.id}`);
+}
+
+function getMcpRuleTargetIdsForServer(serverId) {
+  return [
+    `server:${serverId}`,
+    ...(latestState?.mcpToolFilterCatalog?.tools || [])
+      .filter((tool) => tool.serverId === serverId)
+      .map((tool) => tool.id),
+  ];
 }
 
 function resolveBulkToolFilterMode(ruleTargetIds, rules) {

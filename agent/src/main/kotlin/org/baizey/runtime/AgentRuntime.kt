@@ -13,6 +13,7 @@ class AgentRuntime(
     private val listenersProvider: () -> List<ChatModelListener>,
     private val toolFilterRevisionProvider: () -> Int = { 0 },
     private val toolFilterProfileProvider: () -> ToolFilterProfile? = { null },
+    private val mcpToolFilterProfileProvider: () -> McpToolFilterProfile? = { null },
     private val reloadContextBeforeBuild: Boolean = true,
     private val agentInstanceFactory: (AgenticInstanceContext) -> AgentInstance = { AgentInstance.create(it) }
 ) : HarnessRuntime {
@@ -54,6 +55,7 @@ class AgentRuntime(
             agentContext.policies.reloadFromPersistence()
         }
         val toolFilterProfile = toolFilterProfileProvider() ?: everythingToolFilterProfile()
+        val mcpToolFilterProfile = mcpToolFilterProfileProvider() ?: McpToolFilterProfileStore.everythingProfile()
         return agentContext.copy(
             core = agentContext.core.copy(
                 modelName = ModelSelection.current.name,
@@ -63,6 +65,7 @@ class AgentRuntime(
             ),
             tools = agentContext.tools.copy(
                 profile = toolFilterProfile,
+                mcpProfile = mcpToolFilterProfile,
                 shouldInterruptBeforeToolExecution = shouldInterruptBeforeToolExecution
             )
         )

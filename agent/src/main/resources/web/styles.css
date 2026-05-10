@@ -233,7 +233,7 @@ button {
 
 .controls {
   display: grid;
-  grid-template-columns: repeat(4, minmax(170px, 1fr)) auto;
+  grid-template-columns: repeat(5, minmax(150px, 1fr)) auto;
   align-items: stretch;
   gap: 12px;
 }
@@ -1104,6 +1104,47 @@ h2 {
   gap: 16px;
   padding: 20px 22px 24px;
   overflow: auto;
+}
+
+.tool-filter-sections {
+  gap: 22px;
+}
+
+.tool-filter-section {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, rgba(12, 18, 31, 0.72), rgba(7, 11, 19, 0.72));
+}
+
+.tool-filter-section-built-in {
+  border-left: 4px solid var(--event-tool-done);
+}
+
+.tool-filter-section-mcp {
+  border-left: 4px solid var(--event-tool-pending);
+}
+
+.tool-filter-section-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tool-filter-section-header strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--heading);
+  font-size: 1.05rem;
+}
+
+.tool-filter-section-header p {
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .filters-toolbar {

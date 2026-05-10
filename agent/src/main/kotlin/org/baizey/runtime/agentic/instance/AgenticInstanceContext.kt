@@ -2,8 +2,6 @@ package org.baizey.runtime.agentic.instance
 
 import dev.langchain4j.agent.tool.ToolSpecifications
 import dev.langchain4j.mcp.McpToolProvider
-import dev.langchain4j.mcp.client.DefaultMcpClient
-import dev.langchain4j.mcp.client.transport.stdio.StdioMcpTransport
 import dev.langchain4j.memory.chat.MessageWindowChatMemory
 import dev.langchain4j.model.chat.ChatModel
 import dev.langchain4j.model.chat.listener.ChatModelListener
@@ -98,23 +96,17 @@ data class AgenticInstanceContext(
             .flatMap { tool -> ToolSpecifications.toolSpecificationsFrom(tool).map { it.name() } }
             .toSet()
         val mcpClients = mcpConfig.servers.entries.map { (key, value) ->
-            DefaultMcpClient.builder()
-                .key(key)
-                .transport(
-                    StdioMcpTransport.builder()
-                        .command(listOf(value.command) + value.args)
-                        .environment(value.env)
-                        .logEvents(true)
-                        .build()
-                )
-                .build()
+            McpToolCatalog.buildMcpClient(key, value)
         }
         val mcpToolProvider = if (mcpClients.isEmpty()) {
             null
         } else {
             McpToolProvider.builder()
                 .mcpClients(mcpClients)
-                .filter { _, tool -> tool.name() !in registeredToolNames }
+                .filter { client, tool ->
+                    tool.name() !in registeredToolNames &&
+                        McpToolCatalog.isEnabled(client.key(), tool.name(), this.tools.mcpProfile)
+                }
                 .build()
         }
         return RuntimeResources(
@@ -131,6 +123,7 @@ data class RuntimeResources(
 
 data class ToolContext(
     val profile: ToolFilterProfile,
+    val mcpProfile: McpToolFilterProfile = McpToolFilterProfileStore.everythingProfile(),
     val tools: List<Any>,
     val shouldInterruptBeforeToolExecution: () -> Boolean = { false },
     val shouldInterruptAfterToolExecution: () -> Boolean = { false }

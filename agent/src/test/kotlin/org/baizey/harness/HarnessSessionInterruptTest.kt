@@ -15,7 +15,7 @@ class HarnessSessionInterruptTest {
     fun `newer message discards stale assistant response`() {
         val firstCallStarted = CountDownLatch(1)
         val releaseFirstCall = CountDownLatch(1)
-        val session = HarnessSession(FakeInteractionPort()) { _, shouldInterrupt, _, _, _ ->
+        val session = HarnessSession(FakeInteractionPort()) { _, shouldInterrupt, _, _, _, _ ->
             FakeRuntime { prompt ->
                 when (prompt) {
                     "first question" -> {
@@ -30,7 +30,11 @@ class HarnessSessionInterruptTest {
                     }
 
                     "new question" -> "fresh answer"
-                    else -> error("Unexpected prompt: $prompt")
+                    else -> if (prompt.contains("new question")) {
+                        "fresh answer"
+                    } else {
+                        error("Unexpected prompt: $prompt")
+                    }
                 }
             }
         }
@@ -59,7 +63,7 @@ class HarnessSessionInterruptTest {
     @Test
     fun `newer message interrupts before next tool boundary`() {
         val firstCallStarted = CountDownLatch(1)
-        val session = HarnessSession(FakeInteractionPort()) { _, shouldInterrupt, _, _, _ ->
+        val session = HarnessSession(FakeInteractionPort()) { _, shouldInterrupt, _, _, _, _ ->
             FakeRuntime { prompt ->
                 when (prompt) {
                     "first question" -> {
@@ -70,7 +74,11 @@ class HarnessSessionInterruptTest {
                     }
 
                     "new question" -> "fresh answer"
-                    else -> error("Unexpected prompt: $prompt")
+                    else -> if (prompt.contains("new question")) {
+                        "fresh answer"
+                    } else {
+                        error("Unexpected prompt: $prompt")
+                    }
                 }
             }
         }
