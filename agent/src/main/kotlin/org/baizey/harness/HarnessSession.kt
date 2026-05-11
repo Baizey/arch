@@ -12,7 +12,9 @@ import org.baizey.commands.utils.ModelSelection
 import org.baizey.commands.utils.ModelSelectionResult
 import org.baizey.harness.policy.UserGitPolicyLogic
 import org.baizey.harness.policy.UserPathPolicyLogic
+import org.baizey.harness.tools.sandbox.ShellTool
 import org.baizey.runtime.AgentRuntime
+import org.baizey.runtime.AppConfig
 import org.baizey.runtime.McpToolFilterProfile
 import org.baizey.runtime.McpToolFilterProfileStore
 import org.baizey.runtime.ToolFilterProfile
@@ -24,6 +26,7 @@ import org.baizey.runtime.agentic.instance.ProviderType
 import org.baizey.runtime.agentic.instance.exceptions.AgentRunInterruptedException
 import org.baizey.runtime.agentic.instance.SystemPrompt
 import org.baizey.runtime.agentic.instance.ToolContext
+import org.baizey.runtime.sandbox.AgentShSandboxService
 import java.util.ArrayDeque
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
@@ -116,6 +119,17 @@ class HarnessSession(
             )
         }
 ) {
+    private val pathPolicyLogic = UserPathPolicyLogic(interactionPort)
+    private val gitPolicyLogic = UserGitPolicyLogic(interactionPort)
+    private val sandboxService = runCatching { AppConfig.sandbox }.getOrNull()
+        ?.takeIf { it.enabled }
+        ?.let { sandboxConfig ->
+            AgentShSandboxService(
+                config = sandboxConfig,
+                pathPolicyLogic = pathPolicyLogic,
+                agentId = UUID.randomUUID().toString()
+            )
+        }
     private val agentContext = AgenticInstanceContext(
         core = CoreContext(
             systemPrompt = "",
@@ -125,13 +139,16 @@ class HarnessSession(
             userInteraction = interactionPort
         ),
         policies = PolicyContext(
-            git = UserGitPolicyLogic(interactionPort),
-            path = UserPathPolicyLogic(interactionPort)
+            git = gitPolicyLogic,
+            path = pathPolicyLogic
         ),
         tools = ToolContext(
             profile = ToolFilterProfileStore.everythingProfile(),
             mcpProfile = McpToolFilterProfileStore.everythingProfile(),
-            tools = emptyList()
+            onPathPolicyChanged = { sandboxService?.refreshPolicy() },
+            tools = buildList {
+                sandboxService?.let { add(ShellTool(it)) }
+            }
         )
     )
     private val lock = Any()
@@ -182,18 +199,12 @@ class HarnessSession(
 
     fun snapshot(): HarnessSnapshot {
         synchronized(lock) {
+            val modelCatalogSnapshot = loadModelCatalogSnapshot()
             return HarnessSnapshot(
                 running = running,
-                selectedModelId = ModelSelection.current.id,
+                selectedModelId = modelCatalogSnapshot.selectedModelId,
                 modelLabel = runtime.currentModel,
-                supportedModels = ModelSelection.supportedModels.map { model ->
-                    HarnessSupportedModel(
-                        id = model.id,
-                        name = model.name,
-                        provider = model.provider.name.lowercase(),
-                        providerLabel = model.provider.displayName
-                    )
-                },
+                supportedModels = modelCatalogSnapshot.supportedModels,
                 activeContextSize = activeContextSize,
                 messages = messages.toList(),
                 activity = activity.toList(),
@@ -347,6 +358,10 @@ class HarnessSession(
             title = "Shutdown requested",
             detail = "The current step cannot be cancelled mid-call. Shutdown will continue before the next continue cycle."
         )
+    }
+
+    fun close() {
+        sandboxService?.close()
     }
 
     private fun runConversation(initialPrompt: String) {
@@ -540,6 +555,27 @@ If you have a final result for the user provide it, or ask any questions you nee
 
     private fun currentMcpToolFilterProfile(): McpToolFilterProfile? = mcpToolFilterProfile
 
+    private fun loadModelCatalogSnapshot(): HarnessModelCatalogSnapshot {
+        return try {
+            HarnessModelCatalogSnapshot(
+                selectedModelId = ModelSelection.current.id,
+                supportedModels = ModelSelection.supportedModels.map { model ->
+                    HarnessSupportedModel(
+                        id = model.id,
+                        name = model.name,
+                        provider = model.provider.name.lowercase(),
+                        providerLabel = model.provider.displayName
+                    )
+                }
+            )
+        } catch (_: Throwable) {
+            HarnessModelCatalogSnapshot(
+                selectedModelId = runtime.currentModel,
+                supportedModels = emptyList()
+            )
+        }
+    }
+
     private fun consumeInterruptIfPendingMessageExists(): Boolean {
         synchronized(lock) {
             if (!interruptRequested || pendingMessages.isEmpty()) {
@@ -628,3 +664,8 @@ If you have a final result for the user provide it, or ask any questions you nee
         }
     }
 }
+
+private data class HarnessModelCatalogSnapshot(
+    val selectedModelId: String,
+    val supportedModels: List<HarnessSupportedModel>
+)

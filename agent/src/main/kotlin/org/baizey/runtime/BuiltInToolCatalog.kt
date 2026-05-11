@@ -25,6 +25,7 @@ data class BuiltInToolDescriptor(
 object BuiltInToolCatalog {
     val groups = listOf(
         BuiltInToolGroup("fs", "Filesystem", "File inspection and modification tools."),
+        BuiltInToolGroup("sandbox", "Sandbox", "Sandbox-backed execution tools."),
         BuiltInToolGroup("web", "Web", "Web search and website fetching tools."),
         BuiltInToolGroup("git", "Git", "Repository inspection and mutation tools."),
         BuiltInToolGroup("ask-user", "Ask User", "Question routing back to the user.")
@@ -37,6 +38,7 @@ object BuiltInToolCatalog {
         BuiltInToolSubgroup("fs-update", "fs", "Update", "Edit existing files in place."),
         BuiltInToolSubgroup("fs-move", "fs", "Move / Copy", "Move or copy filesystem paths."),
         BuiltInToolSubgroup("fs-delete", "fs", "Delete", "Delete filesystem paths."),
+        BuiltInToolSubgroup("sandbox-shell", "sandbox", "Shell", "Execute commands inside the AgentSH sandbox."),
         BuiltInToolSubgroup("web-search", "web", "Search", "Discover candidate web pages."),
         BuiltInToolSubgroup("web-fetch", "web", "Fetch", "Read one chosen website."),
         BuiltInToolSubgroup("git-read", "git", "Read", "Inspect local repository state and history."),
@@ -48,6 +50,7 @@ object BuiltInToolCatalog {
     val tools = listOf(
         BuiltInToolDescriptor("ask_user", "ask_user", "ask-user", null, "Ask User", "Ask the user a multiple-choice question."),
         BuiltInToolDescriptor("inspect_path_access", "inspect_path_access", "fs", "fs-inspect", "Inspect Path Access", "Inspect current filesystem access for one path."),
+        BuiltInToolDescriptor("ask_path_permission", "ask_path_permission", "fs", "fs-inspect", "Ask Path Permission", "Ask the user to allow or deny filesystem access for one path."),
         BuiltInToolDescriptor("list_directory", "list_directory", "fs", "fs-read", "List Directory", "List files and folders in a directory."),
         BuiltInToolDescriptor("search_files", "search_files", "fs", "fs-read", "Search Files", "Search file names or file contents."),
         BuiltInToolDescriptor("read_file", "read_file", "fs", "fs-read", "Read File", "Read a line range from a file."),
@@ -55,6 +58,7 @@ object BuiltInToolCatalog {
         BuiltInToolDescriptor("write_file", "write_file", "fs", "fs-create", "Write File", "Create or overwrite a file."),
         BuiltInToolDescriptor("move_or_copy_path", "move_or_copy_path", "fs", "fs-move", "Move or Copy Path", "Move or copy a file or directory."),
         BuiltInToolDescriptor("delete_path", "delete_path", "fs", "fs-delete", "Delete Path", "Delete a file or directory."),
+        BuiltInToolDescriptor("shell", "shell", "sandbox", "sandbox-shell", "Shell", "Execute a shell command inside the AgentSH sandbox."),
         BuiltInToolDescriptor("search_web", "search_web", "web", "web-search", "Search Web", "Search the public web for candidate pages."),
         BuiltInToolDescriptor("fetch_website", "fetch_website", "web", "web-fetch", "Fetch Website", "Fetch and read website content."),
         BuiltInToolDescriptor("git_status", "git_status", "git", "git-read", "Git Status", "Inspect repository status."),

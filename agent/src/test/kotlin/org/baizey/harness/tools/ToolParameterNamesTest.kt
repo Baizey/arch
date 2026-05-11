@@ -7,6 +7,7 @@ import org.baizey.harness.PermissionDecision
 import org.baizey.harness.PermissionRequest
 import org.baizey.harness.policy.UserGitPolicyLogic
 import org.baizey.harness.policy.UserPathPolicyLogic
+import org.baizey.harness.tools.fs.AskPathPermissionTool
 import org.baizey.harness.policy.shared.PolicyLifetime
 import org.baizey.harness.tools.fs.InspectPathAccessTool
 import org.baizey.harness.tools.fs.ReadFileTool
@@ -120,6 +121,19 @@ class ToolParameterNamesTest {
             specification.description()
         )
         assertEquals(listOf("path"), specification.parameters().properties().keys.toList())
+    }
+
+    @Test
+    fun `ask path permission tool exposes the intended description and parameter names`() {
+        val tool = AskPathPermissionTool(pathPolicyLogic)
+        val specification = ToolSpecifications.toolSpecificationsFrom(tool)
+            .single { it.name() == "ask_path_permission" }
+
+        assertTrue(
+            specification.description().startsWith("Request filesystem permission for one path and one access type."),
+            specification.description()
+        )
+        assertEquals(listOf("path", "accessType"), specification.parameters().properties().keys.toList())
     }
 
     @Test

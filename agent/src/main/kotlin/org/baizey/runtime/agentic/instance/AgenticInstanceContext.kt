@@ -125,6 +125,7 @@ data class ToolContext(
     val profile: ToolFilterProfile,
     val mcpProfile: McpToolFilterProfile = McpToolFilterProfileStore.everythingProfile(),
     val tools: List<Any>,
+    val onPathPolicyChanged: () -> Unit = {},
     val shouldInterruptBeforeToolExecution: () -> Boolean = { false },
     val shouldInterruptAfterToolExecution: () -> Boolean = { false }
 )

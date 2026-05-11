@@ -1,0 +1,113 @@
+server:
+  http:
+    addr: "0.0.0.0:18080"
+  grpc:
+    enabled: false
+
+auth:
+  type: "api_key"
+  api_key:
+    keys_file: "/etc/agentsh/api_keys.yaml"
+    header_name: "X-API-Key"
+
+logging:
+  level: "info"
+  format: "json"
+  output: "/var/log/agentsh/server.log"
+
+audit:
+  enabled: true
+  output: "/var/log/agentsh/audit.jsonl"
+  storage:
+    sqlite_path: "/var/lib/agentsh/events.db"
+
+sessions:
+  base_dir: "/var/lib/agentsh/sessions"
+
+policies:
+  dir: "/etc/agentsh/policies"
+  default: "default"
+
+security:
+  mode: "auto"
+  strict: false
+  warn_degraded: true
+
+landlock:
+  enabled: false
+  allow_execute:
+    - /usr/bin
+    - /usr/bin/**
+    - /bin
+    - /bin/**
+    - /usr/local/bin
+    - /usr/local/bin/**
+  allow_read:
+    - /etc
+    - /etc/**
+    - /bin
+    - /bin/**
+    - /lib
+    - /lib/**
+    - /lib64
+    - /lib64/**
+    - /usr/bin
+    - /usr/bin/**
+    - /usr/lib
+    - /usr/lib/**
+    - /usr/local/bin
+    - /usr/local/bin/**
+  deny_paths:
+    - /var/run/docker.sock
+    - /run/containerd/containerd.sock
+
+capabilities:
+  allow: []
+
+sandbox:
+  enabled: true
+  allow_degraded: true
+  fuse:
+    enabled: true
+    audit:
+      enabled: true
+      mode: "monitor"
+      trash_path: ".agentsh_trash"
+      ttl: "7d"
+      quota: "5GB"
+    mount_base_dir: "/var/lib/agentsh/sessions"
+  network:
+    enabled: true
+    intercept_mode: "all"
+    proxy_listen_addr: "127.0.0.1:0"
+    ebpf:
+      enabled: false
+      required: false
+  cgroups:
+    enabled: false
+  unix_sockets:
+    enabled: true
+  seccomp:
+    enabled: true
+    mode: "enforce"
+    unix_socket:
+      enabled: true
+      action: "enforce"
+    execve:
+      enabled: true
+    file_monitor:
+      enabled: true
+      enforce_without_fuse: true
+  ptrace:
+    enabled: false
+    trace:
+      execve: true
+      file: true
+      network: true
+      signal: true
+  env_inject:
+    BASH_ENV: "/usr/lib/agentsh/bash_startup.sh"
+
+development:
+  disable_auth: false
+  disable_policy: false

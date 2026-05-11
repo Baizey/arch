@@ -13,10 +13,15 @@ object AgentTools {
             if (BuiltInToolCatalog.isEnabled("ask_user", agentContext.tools.profile)) {
                 add(AskUserTool(agentContext.core.userInteraction))
             }
-            addAll(FsTools.create(agentContext.policies.path).filterBuiltInTools(agentContext.tools.profile))
+            addAll(
+                FsTools.create(
+                    context = agentContext.policies.path,
+                    onPolicyChanged = agentContext.tools.onPathPolicyChanged
+                ).filterBuiltInTools(agentContext.tools.profile)
+            )
             addAll(WebTools.create().filterBuiltInTools(agentContext.tools.profile))
             addAll(GitTools.create(agentContext.policies.git).filterBuiltInTools(agentContext.tools.profile))
-            addAll(agentContext.tools.tools)
+            addAll(agentContext.tools.tools.filterBuiltInTools(agentContext.tools.profile))
         }
     }
 

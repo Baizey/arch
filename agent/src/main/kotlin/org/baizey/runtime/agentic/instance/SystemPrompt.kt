@@ -42,6 +42,9 @@ object SystemPrompt {
              - Always read relevant files before editing them. Never guess at code structure.
              - Read the full file for changes under 50 lines. For larger files, read at least the function/block being modified plus surrounding context (imports, class header, adjacent methods).
              - Use inspect_path_access when you are unsure whether a path is already allowed, denied, or would require asking permission.
+             - Use ask_path_permission when you need the user to approve a filesystem path that is not already allowed.
+             - Shell commands run inside AgentSH when the shell tool is available. Unspecified filesystem access defaults to deny there too.
+             - If a shell command is blocked by sandbox policy, request the needed path permission and retry instead of assuming the command is impossible.
              - Prefer absolute paths when available; use project-relative paths only for IDE-specific tools that require them.
              - Use list_directory for discovery, search_files for content search or filename glob search, read_file to inspect a tight line range, and edit_file(path, startLine, endLineExclusive, newText) to replace that exact range. Line numbers are 0-based and the end line is exclusive.
              - Preserve existing project style, naming conventions, dependencies, and architectural patterns.

@@ -1,0 +1,38 @@
+version: 1
+name: default
+description: Audit-first local agent policy. Override per agent with AGENTSH_POLICY_NAME.
+
+file_rules:
+  - name: audit-all-files
+    paths:
+      - "**"
+    operations:
+      - "*"
+    decision: audit
+
+network_rules:
+  - name: audit-all-network
+    domains:
+      - "*"
+    decision: audit
+
+command_rules:
+  - name: audit-all-commands
+    commands:
+      - "*"
+    decision: audit
+
+resource_limits:
+  max_memory_mb: 4096
+  pids_max: 256
+  command_timeout: 30m
+  session_timeout: 8h
+  idle_timeout: 30m
+
+audit:
+  log_allowed: true
+  log_denied: true
+  log_approved: true
+  include_stdout: false
+  include_stderr: true
+  include_file_content: false

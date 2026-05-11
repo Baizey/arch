@@ -68,6 +68,12 @@ class UserPathPolicyLogic(
         }
     }
 
+    override fun activePathPolicies(): List<PathPolicy> {
+        return activePolicies.map { policy ->
+            policy.copy(accessTypes = policy.accessTypes.toMutableList())
+        }
+    }
+
     override fun evaluate(rawFilePath: String, accessType: FsAccessType): PathPolicyResult {
         val cleanPath = Path(rawFilePath).toAbsolutePath().normalize()
         val path = cleanPath.toString()

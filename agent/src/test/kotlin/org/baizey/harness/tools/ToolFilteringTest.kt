@@ -39,6 +39,7 @@ class ToolFilteringTest {
             name = "No filesystem",
             isBuiltIn = false,
             rules = mapOf(
+                "tool:ask_path_permission" to ToolFilterMode.DISABLED,
                 "tool:inspect_path_access" to ToolFilterMode.DISABLED,
                 "tool:list_directory" to ToolFilterMode.DISABLED,
                 "tool:search_files" to ToolFilterMode.DISABLED,
@@ -65,6 +66,7 @@ class ToolFilteringTest {
             name = "Selective tools",
             isBuiltIn = false,
             rules = mapOf(
+                "tool:ask_path_permission" to ToolFilterMode.DISABLED,
                 "tool:inspect_path_access" to ToolFilterMode.DISABLED,
                 "tool:list_directory" to ToolFilterMode.ENABLED,
                 "tool:search_files" to ToolFilterMode.ENABLED,
