@@ -56,17 +56,18 @@ class AgentRuntime(
         }
         val toolFilterProfile = toolFilterProfileProvider() ?: everythingToolFilterProfile()
         val mcpToolFilterProfile = mcpToolFilterProfileProvider() ?: McpToolFilterProfileStore.everythingProfile()
-        return agentContext.copy(
-            core = agentContext.core.copy(
+        return agentContext.withRuntimeOverrides(
+            core = agentContext.core.withRuntimeOverrides(
                 modelName = ModelSelection.current.name,
                 type = ModelSelection.current.provider,
                 systemPrompt = SystemPrompt.text(agentContext.policies),
                 listeners = listenersProvider(),
             ),
-            tools = agentContext.tools.copy(
+            tools = agentContext.tools.withRuntimeOverrides(
                 profile = toolFilterProfile,
                 mcpProfile = mcpToolFilterProfile,
-                shouldInterruptBeforeToolExecution = shouldInterruptBeforeToolExecution
+                shouldInterruptBeforeToolExecution = shouldInterruptBeforeToolExecution,
+                shouldInterruptAfterToolExecution = agentContext.tools.shouldInterruptAfterToolExecution
             )
         )
     }

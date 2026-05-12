@@ -10,7 +10,10 @@ class ShellTool(
 ) {
     @Tool(
         name = "shell",
-        value = ["""Execute a shell command from a virtual sandbox.
+        value = ["""Execute a shell command in a Linux sandbox using bash.
+Use Linux/POSIX commands, not cmd.exe or PowerShell syntax.
+Use normal host absolute paths such as C:\Repositories\small_agent; the tool maps them into the sandbox.
+Do not write mounted Windows paths as /host/C: or /host/C.
 If the sandbox blocks filesystem access, ask_path_permission for the path and retry the command.
 Installed shell tools are:
     curl
@@ -26,7 +29,7 @@ Installed shell tools are:
     npm
     openjdk-25-jdk
     gradle
-Example: shell(command="git status", timeoutSeconds=30)"""]
+Example: shell(command="ls -la \"C:\Repositories\small_agent\agent\"", timeoutSeconds=30)"""]
     )
     fun shell(
         @P("Shell command to execute inside the AgentSH sandbox.")

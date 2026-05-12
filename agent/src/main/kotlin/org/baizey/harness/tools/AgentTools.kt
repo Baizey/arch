@@ -2,6 +2,7 @@ package org.baizey.harness.tools
 
 import org.baizey.harness.tools.git.GitTools
 import org.baizey.harness.tools.fs.FsTools
+import org.baizey.harness.tools.sandbox.ShellTool
 import org.baizey.harness.tools.web.WebTools
 import org.baizey.runtime.BuiltInToolCatalog
 import org.baizey.runtime.ToolFilterProfile
@@ -21,14 +22,20 @@ object AgentTools {
             )
             addAll(WebTools.create().filterBuiltInTools(agentContext.tools.profile))
             addAll(GitTools.create(agentContext.policies.git).filterBuiltInTools(agentContext.tools.profile))
-            addAll(agentContext.tools.tools.filterBuiltInTools(agentContext.tools.profile))
+            ShellTool(agentContext.tools.sandbox)
+                .takeIf { tool -> tool.isBuiltInToolEnabled(agentContext.tools.profile) }
+                ?.let(::add)
         }
     }
 
     private fun List<Any>.filterBuiltInTools(toolFilterProfile: ToolFilterProfile?): List<Any> {
         return filter { tool ->
-            val toolNames = dev.langchain4j.agent.tool.ToolSpecifications.toolSpecificationsFrom(tool).map { it.name() }
-            toolNames.isEmpty() || toolNames.any { BuiltInToolCatalog.isEnabled(it, toolFilterProfile) }
+            tool.isBuiltInToolEnabled(toolFilterProfile)
         }
+    }
+
+    private fun Any.isBuiltInToolEnabled(toolFilterProfile: ToolFilterProfile?): Boolean {
+        val toolNames = dev.langchain4j.agent.tool.ToolSpecifications.toolSpecificationsFrom(this).map { it.name() }
+        return toolNames.isEmpty() || toolNames.any { BuiltInToolCatalog.isEnabled(it, toolFilterProfile) }
     }
 }

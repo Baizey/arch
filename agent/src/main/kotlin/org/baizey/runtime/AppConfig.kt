@@ -70,7 +70,6 @@ data class AppConfigInstance(
                     )
                 ),
                 sandbox = SandboxConfig(
-                    enabled = values.optionalBoolean("AGENT_SANDBOX_ENABLED") ?: false,
                     dockerCommand = values.optionalString("AGENT_SANDBOX_DOCKER_COMMAND") ?: "docker",
                     image = values.optionalString("AGENT_SANDBOX_IMAGE") ?: "arch-agentsh:latest",
                     apiKey = values.optionalString("AGENT_SANDBOX_API_KEY") ?: "sk-local-smoke-test",
@@ -131,7 +130,6 @@ data class WebSearchConfig(
 )
 
 data class SandboxConfig(
-    val enabled: Boolean,
     val dockerCommand: String,
     val image: String,
     val apiKey: String,

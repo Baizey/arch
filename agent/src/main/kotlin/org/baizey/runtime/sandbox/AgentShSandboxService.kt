@@ -9,16 +9,22 @@ import org.baizey.harness.policy.PathPolicyLogic
 import org.baizey.runtime.ErrorLog
 import org.baizey.runtime.SandboxConfig
 import org.baizey.utils.IO.json
+import java.net.HttpURLConnection
+import java.net.URI
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class AgentShSandboxService(
     private val config: SandboxConfig,
     private val pathPolicyLogic: PathPolicyLogic,
     private val agentId: String,
     private val hostWorkingDirectory: Path = Paths.get(System.getProperty("user.dir")).toAbsolutePath().normalize(),
-    private val docker: DockerCommandRunner = ProcessDockerCommandRunner(config.dockerCommand)
+    private val docker: DockerCommandRunner = ProcessDockerCommandRunner(config.dockerCommand),
+    private val readinessWaiter: (AgentSandboxHandle, String) -> Unit = ::waitForSandboxReadiness,
+    private val dockerAllowFailureRunner: (String, List<String>) -> Pair<Int, String> = ::runDockerAllowFailure
 ) : AutoCloseable {
     private val lock = Any()
     private val manager = AgentSandboxManager(config, docker)
@@ -86,6 +92,13 @@ class AgentShSandboxService(
             agentId = agentId,
             pathPolicyLogic = pathPolicyLogic
         )
+        try {
+            readinessWaiter(created, config.apiKey)
+        } catch (exception: Exception) {
+            runCatching { manager.stop(created) }
+                .onFailure { stopException -> logSandboxError("sandbox_container_stop_after_start_failure", stopException) }
+            throw exception
+        }
         handle = created
         return created
     }
@@ -148,7 +161,9 @@ class AgentShSandboxService(
         command: String,
         timeout: Duration
     ): SandboxShellResult {
-        val (exitCode, response) = runDockerAllowFailure(
+        val sandboxCommand = rewriteHostPathsForSandbox(command, handle)
+        val (exitCode, response) = dockerAllowFailureRunner(
+            config.dockerCommand,
             listOf(
                 "exec",
                 handle.containerName,
@@ -164,9 +179,16 @@ class AgentShSandboxService(
                 "--timeout",
                 "${timeout.inWholeSeconds}s",
                 "--",
-                "sh",
-                "-lc",
-                command
+                "/usr/bin/env",
+                "-u",
+                "BASH_ENV",
+                "HOME=/tmp",
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "/usr/bin/bash.real",
+                "--noprofile",
+                "--norc",
+                "-c",
+                sandboxCommand
             )
         )
 
@@ -205,15 +227,6 @@ class AgentShSandboxService(
         )
     }
 
-    private fun runDockerAllowFailure(args: List<String>): Pair<Int, String> {
-        val process = ProcessBuilder(listOf(config.dockerCommand) + args)
-            .redirectErrorStream(true)
-            .start()
-        val output = process.inputStream.readAllBytes().decodeToString().trim()
-        val exitCode = process.waitFor()
-        return exitCode to output
-    }
-
     private fun mapHostPath(path: Path, handle: AgentSandboxHandle): String {
         val cleanPath = path.toAbsolutePath().normalize()
         val hostRoot = handle.hostRoot.toAbsolutePath().normalize()
@@ -225,12 +238,108 @@ class AgentShSandboxService(
         return if (relativePath.isBlank()) root else "$root/$relativePath"
     }
 
+    private fun rewriteHostPathsForSandbox(command: String, handle: AgentSandboxHandle): String {
+        var rewritten = rewriteMalformedMountedWindowsPaths(command, handle)
+        rewritten = rewriteQuotedWindowsPaths(rewritten, handle, '"')
+        rewritten = rewriteQuotedWindowsPaths(rewritten, handle, '\'')
+        return WINDOWS_UNQUOTED_PATH_REGEX.replace(rewritten) { match ->
+            mapWindowsPathToSandbox(match.value, handle) ?: match.value
+        }
+    }
+
+    private fun rewriteMalformedMountedWindowsPaths(command: String, handle: AgentSandboxHandle): String {
+        val containerRoot = handle.containerHostRoot.trimEnd('/')
+        val hostRoot = handle.hostRoot.toAbsolutePath().normalize()
+        val drive = hostRoot.root?.toString()?.firstOrNull()?.uppercaseChar() ?: return command
+        val patterns = listOf(
+            Regex("""${Regex.escape(containerRoot)}/$drive:/""", RegexOption.IGNORE_CASE),
+            Regex("""${Regex.escape(containerRoot)}/$drive/""", RegexOption.IGNORE_CASE)
+        )
+        return patterns.fold(command) { current, pattern ->
+            pattern.replace(current, "$containerRoot/")
+        }
+    }
+
+    private fun rewriteQuotedWindowsPaths(command: String, handle: AgentSandboxHandle, quote: Char): String {
+        val pattern = when (quote) {
+            '"' -> WINDOWS_DOUBLE_QUOTED_PATH_REGEX
+            '\'' -> WINDOWS_SINGLE_QUOTED_PATH_REGEX
+            else -> error("Unsupported quote: $quote")
+        }
+        return pattern.replace(command) { match ->
+            val rawPath = match.groupValues[1]
+            val mapped = mapWindowsPathToSandbox(rawPath, handle) ?: rawPath
+            "$quote$mapped$quote"
+        }
+    }
+
+    private fun mapWindowsPathToSandbox(rawPath: String, handle: AgentSandboxHandle): String? {
+        return runCatching { Path.of(rawPath) }
+            .getOrNull()
+            ?.let { path ->
+                runCatching { mapHostPath(path, handle) }.getOrNull()
+            }
+    }
+
     private fun logSandboxError(source: String, exception: Throwable) {
         ErrorLog.log(
             source = source,
             exception = exception,
             context = mapOf("agentId" to agentId)
         )
+    }
+}
+
+private val WINDOWS_DOUBLE_QUOTED_PATH_REGEX = Regex("\"([A-Za-z]:\\\\[^\"]*)\"")
+private val WINDOWS_SINGLE_QUOTED_PATH_REGEX = Regex("'([A-Za-z]:\\\\[^']*)'")
+private val WINDOWS_UNQUOTED_PATH_REGEX = Regex("""(?<![\w/])([A-Za-z]:\\[^\s"'`|&;()<>]+)""")
+
+private fun runDockerAllowFailure(dockerCommand: String, args: List<String>): Pair<Int, String> {
+    val process = ProcessBuilder(listOf(dockerCommand) + args)
+        .redirectErrorStream(true)
+        .start()
+    val output = process.inputStream.readAllBytes().decodeToString().trim()
+    val exitCode = process.waitFor()
+    return exitCode to output
+}
+
+private fun waitForSandboxReadiness(
+    handle: AgentSandboxHandle,
+    apiKey: String,
+    timeout: Duration = 10.seconds,
+    pollInterval: Duration = 200.milliseconds
+) {
+    val deadline = System.nanoTime() + timeout.inWholeNanoseconds
+    var lastFailure: Exception? = null
+
+    while (System.nanoTime() < deadline) {
+        try {
+            val connection = openHealthConnection(handle.endpoint, apiKey)
+            try {
+                if (connection.responseCode in 200..299) {
+                    return
+                }
+            } finally {
+                connection.disconnect()
+            }
+        } catch (exception: Exception) {
+            lastFailure = exception
+        }
+        Thread.sleep(pollInterval.inWholeMilliseconds)
+    }
+
+    throw IllegalStateException(
+        "AgentSH sandbox at ${handle.endpoint} did not become ready within ${timeout.inWholeSeconds}s.",
+        lastFailure
+    )
+}
+
+private fun openHealthConnection(endpoint: String, apiKey: String): HttpURLConnection {
+    return (URI("$endpoint/health").toURL().openConnection() as HttpURLConnection).apply {
+        requestMethod = "GET"
+        connectTimeout = 1_000
+        readTimeout = 1_000
+        setRequestProperty("X-API-Key", apiKey)
     }
 }
 

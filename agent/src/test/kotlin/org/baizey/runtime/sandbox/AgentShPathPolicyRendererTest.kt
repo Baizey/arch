@@ -62,10 +62,18 @@ class AgentShPathPolicyRendererTest {
         assertTrue(yaml.contains("- \"delete\""), yaml)
         assertTrue(yaml.contains("decision: allow"), yaml)
         assertTrue(yaml.contains("decision: deny"), yaml)
+        assertTrue(yaml.contains("name: \"allow-container-runtime-executables\""), yaml)
+        assertTrue(yaml.contains("- \"/usr/bin/**\""), yaml)
+        assertTrue(yaml.contains("name: \"allow-container-runtime-libraries\""), yaml)
+        assertTrue(yaml.contains("- \"/lib/**\""), yaml)
         assertTrue(yaml.contains("name: \"default-deny-files\""), yaml)
         assertFalse(yaml.contains("outside"), yaml)
         assertTrue(
             yaml.indexOf("/host/workspace/private") < yaml.indexOf("/host/workspace\""),
+            yaml
+        )
+        assertTrue(
+            yaml.indexOf("allow-container-runtime-libraries") < yaml.indexOf("default-deny-files"),
             yaml
         )
     }

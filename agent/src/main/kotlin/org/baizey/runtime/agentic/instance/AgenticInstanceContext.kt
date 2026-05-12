@@ -12,6 +12,7 @@ import org.baizey.harness.policy.PathPolicyLogic
 import org.baizey.harness.tools.AgentTools
 import org.baizey.runtime.*
 import org.baizey.runtime.agentic.instance.exceptions.AgentRunInterruptedException
+import org.baizey.runtime.sandbox.AgentShSandboxService
 import org.baizey.utils.IO.fromJson
 import org.baizey.utils.IO.readIfExists
 import java.util.*
@@ -114,6 +115,17 @@ data class AgenticInstanceContext(
             mcpToolProvider = mcpToolProvider
         )
     }
+
+    fun withRuntimeOverrides(
+        core: CoreContext,
+        tools: ToolContext
+    ): AgenticInstanceContext {
+        return AgenticInstanceContext(
+            core = core,
+            policies = policies,
+            tools = tools
+        )
+    }
 }
 
 data class RuntimeResources(
@@ -124,11 +136,27 @@ data class RuntimeResources(
 data class ToolContext(
     val profile: ToolFilterProfile,
     val mcpProfile: McpToolFilterProfile = McpToolFilterProfileStore.everythingProfile(),
-    val tools: List<Any>,
+    val sandbox: AgentShSandboxService,
     val onPathPolicyChanged: () -> Unit = {},
     val shouldInterruptBeforeToolExecution: () -> Boolean = { false },
     val shouldInterruptAfterToolExecution: () -> Boolean = { false }
-)
+) {
+    fun withRuntimeOverrides(
+        profile: ToolFilterProfile,
+        mcpProfile: McpToolFilterProfile,
+        shouldInterruptBeforeToolExecution: () -> Boolean,
+        shouldInterruptAfterToolExecution: () -> Boolean
+    ): ToolContext {
+        return ToolContext(
+            profile = profile,
+            mcpProfile = mcpProfile,
+            sandbox = sandbox,
+            onPathPolicyChanged = onPathPolicyChanged,
+            shouldInterruptBeforeToolExecution = shouldInterruptBeforeToolExecution,
+            shouldInterruptAfterToolExecution = shouldInterruptAfterToolExecution
+        )
+    }
+}
 
 data class PolicyContext(
     val path: PathPolicyLogic,
@@ -147,4 +175,20 @@ data class CoreContext(
     val modelName: String,
     val listeners: List<ChatModelListener>,
     val userInteraction: HarnessInteractionPort
-)
+) {
+    fun withRuntimeOverrides(
+        systemPrompt: String,
+        type: ProviderType,
+        modelName: String,
+        listeners: List<ChatModelListener>
+    ): CoreContext {
+        return CoreContext(
+            sessionId = sessionId,
+            systemPrompt = systemPrompt,
+            type = type,
+            modelName = modelName,
+            listeners = listeners,
+            userInteraction = userInteraction
+        )
+    }
+}

@@ -8,7 +8,6 @@ import org.baizey.harness.policy.path.PathPolicyResult
 import org.baizey.harness.policy.shared.PolicyLifetime
 import org.baizey.runtime.SandboxConfig
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -21,7 +20,6 @@ class AgentSandboxManagerTest {
     fun `starts one docker container for an agent`(@TempDir tempDir: Path) {
         val runner = RecordingDockerCommandRunner()
         val config = SandboxConfig(
-            enabled = true,
             dockerCommand = "docker",
             image = "arch-agentsh:test",
             apiKey = "sandbox-key",
@@ -64,7 +62,6 @@ class AgentSandboxManagerTest {
         val hostRoot = tempDir.resolve("host").toAbsolutePath().normalize()
         val workspace = hostRoot.resolve("workspace")
         val config = SandboxConfig(
-            enabled = true,
             dockerCommand = "docker",
             image = "arch-agentsh:test",
             apiKey = "sandbox-key",
@@ -109,9 +106,9 @@ class AgentSandboxManagerTest {
     }
 
     @Test
-    fun `refuses to start when sandboxing is disabled`(@TempDir tempDir: Path) {
+    fun `starts without an enabled flag because sandboxing is always configured`(@TempDir tempDir: Path) {
+        val runner = RecordingDockerCommandRunner()
         val config = SandboxConfig(
-            enabled = false,
             dockerCommand = "docker",
             image = "arch-agentsh:test",
             apiKey = "sandbox-key",
@@ -125,9 +122,11 @@ class AgentSandboxManagerTest {
             privileged = false
         )
 
-        assertThrows(IllegalArgumentException::class.java) {
-            AgentSandboxManager(config, RecordingDockerCommandRunner()).start("agent")
-        }
+        val handle = AgentSandboxManager(config, runner).start("agent")
+
+        assertEquals("arch-agentsh-agent", handle.containerName)
+        assertTrue(handle.endpoint.startsWith("http://127.0.0.1:"))
+        assertEquals("run", runner.commands.single()[0])
     }
 }
 

@@ -14,12 +14,14 @@ import org.baizey.harness.tools.fs.ReadFileTool
 import org.baizey.harness.tools.fs.SearchFilesTool
 import org.baizey.harness.tools.fs.WriteFileTool
 import org.baizey.harness.tools.web.FetchWebsiteTool
+import org.baizey.runtime.AppConfig
 import org.baizey.runtime.ToolFilterProfileStore
 import org.baizey.runtime.agentic.instance.AgenticInstanceContext
 import org.baizey.runtime.agentic.instance.CoreContext
 import org.baizey.runtime.agentic.instance.PolicyContext
 import org.baizey.runtime.agentic.instance.ProviderType
 import org.baizey.runtime.agentic.instance.ToolContext
+import org.baizey.runtime.sandbox.AgentShSandboxService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -45,6 +47,7 @@ class ToolParameterNamesTest {
     }
     private val pathPolicyLogic = UserPathPolicyLogic(interactionPort)
     private val gitPolicyLogic = UserGitPolicyLogic(interactionPort)
+    private val sandboxService = AgentShSandboxService(AppConfig.sandbox, pathPolicyLogic, "tool-parameter-names-test")
 
     @Test
     fun `write file method preserves parameter names for tool schema reflection`() {
@@ -165,7 +168,7 @@ class ToolParameterNamesTest {
             ),
             tools = ToolContext(
                 profile = ToolFilterProfileStore.everythingProfile(),
-                tools = emptyList()
+                sandbox = sandboxService
             )
         )
     }

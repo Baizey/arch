@@ -18,7 +18,6 @@ class AgentSandboxManager(
         hostPort: Int? = null,
         pathPolicyLogic: PathPolicyLogic? = null
     ): AgentSandboxHandle {
-        require(config.enabled) { "Agent sandboxing is disabled." }
         val safeAgentId = agentId.toAgentContainerToken()
         val containerName = "arch-agentsh-$safeAgentId"
         val port = hostPort ?: findAvailablePort(config.portStart)

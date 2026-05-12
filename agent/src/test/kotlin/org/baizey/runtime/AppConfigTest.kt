@@ -58,7 +58,6 @@ class AppConfigTest {
         assertNull(config.webSearch.brave.apiKey)
         assertNull(config.webSearch.google.apiKey)
         assertNull(config.webSearch.google.searchEngineId)
-        assertEquals(false, config.sandbox.enabled)
         assertEquals("arch-agentsh:latest", config.sandbox.image)
     }
 
@@ -69,7 +68,6 @@ class AppConfigTest {
             AGENT_CONSOLE_HOST=127.0.0.1
             AGENT_CONSOLE_PORT=8420
             OLLAMA_BASE_URL=http://localhost:11434
-            AGENT_SANDBOX_ENABLED=yes
             AGENT_SANDBOX_IMAGE=arch-agentsh:test
             AGENT_SANDBOX_DOCKER_COMMAND=docker.exe
             AGENT_SANDBOX_API_KEY=test-sandbox-key
@@ -83,7 +81,6 @@ class AppConfigTest {
 
         val config = AppConfigInstance.load(tempDir)
 
-        assertEquals(true, config.sandbox.enabled)
         assertEquals("arch-agentsh:test", config.sandbox.image)
         assertEquals("docker.exe", config.sandbox.dockerCommand)
         assertEquals("test-sandbox-key", config.sandbox.apiKey)

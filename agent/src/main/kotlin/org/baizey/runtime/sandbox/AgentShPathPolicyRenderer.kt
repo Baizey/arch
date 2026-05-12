@@ -14,6 +14,7 @@ class AgentShPathPolicyRenderer(
         val hostRoot = hostRoot.toAbsolutePath().normalize()
         val rules = buildList {
             systemProtectedRule(hostRoot)?.let { add(it) }
+            addAll(containerRuntimeRules())
             addAll(
                 pathPolicyLogic.activePathPolicies()
                     .sortedByDescending { it.pattern.length }
@@ -33,7 +34,7 @@ class AgentShPathPolicyRenderer(
         return buildString {
             appendLine("version: 1")
             appendLine("name: ${yamlScalar(policyName)}")
-            appendLine("description: ${yamlScalar("Generated from PathPolicyLogic. Unknown paths default to deny.")}")
+            appendLine("description: ${yamlScalar("Generated from PathPolicyLogic. Unknown non-runtime paths default to deny.")}")
             appendLine()
             appendLine("file_rules:")
             rules.forEach { appendFileRule(it) }
@@ -58,6 +59,77 @@ class AgentShPathPolicyRenderer(
             appendLine("  include_stderr: true")
             appendLine("  include_file_content: false")
         }.trimEnd()
+    }
+
+    private fun containerRuntimeRules(): List<FileRule> {
+        return listOf(
+            FileRule(
+                name = "allow-container-runtime-executables",
+                paths = listOf(
+                    "/bin",
+                    "/bin/**",
+                    "/usr/bin",
+                    "/usr/bin/**",
+                    "/usr/local/bin",
+                    "/usr/local/bin/**"
+                ),
+                operations = listOf("read", "open", "stat", "list", "readlink", "execute"),
+                decision = "allow",
+                message = "Allow sandbox commands to execute container runtime binaries."
+            ),
+            FileRule(
+                name = "allow-container-runtime-libraries",
+                paths = listOf(
+                    "/etc",
+                    "/etc/**",
+                    "/lib",
+                    "/lib/**",
+                    "/lib64",
+                    "/lib64/**",
+                    "/usr/lib",
+                    "/usr/lib/**",
+                    "/usr/local/lib",
+                    "/usr/local/lib/**"
+                ),
+                operations = listOf("read", "open", "stat", "list", "readlink"),
+                decision = "allow",
+                message = "Allow dynamically linked sandbox binaries to load their runtime files."
+            ),
+            FileRule(
+                name = "allow-container-runtime-devices",
+                paths = listOf(
+                    "/dev/null",
+                    "/dev/zero",
+                    "/dev/random",
+                    "/dev/urandom"
+                ),
+                operations = listOf("read", "open", "stat", "readlink", "write"),
+                decision = "allow",
+                message = "Allow standard device files required by common command-line tools."
+            ),
+            FileRule(
+                name = "allow-container-runtime-proc",
+                paths = listOf(
+                    "/proc",
+                    "/proc/**"
+                ),
+                operations = listOf("read", "open", "stat", "list", "readlink"),
+                decision = "allow",
+                message = "Allow read-only process metadata needed by common command-line tools."
+            ),
+            FileRule(
+                name = "allow-container-runtime-temp",
+                paths = listOf(
+                    "/tmp",
+                    "/tmp/**",
+                    "/var/tmp",
+                    "/var/tmp/**"
+                ),
+                operations = listOf("*"),
+                decision = "allow",
+                message = "Allow temporary files inside the disposable sandbox container."
+            )
+        )
     }
 
     private fun systemProtectedRule(hostRoot: Path): FileRule? {

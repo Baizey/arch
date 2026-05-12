@@ -12,7 +12,6 @@ import org.baizey.commands.utils.ModelSelection
 import org.baizey.commands.utils.ModelSelectionResult
 import org.baizey.harness.policy.UserGitPolicyLogic
 import org.baizey.harness.policy.UserPathPolicyLogic
-import org.baizey.harness.tools.sandbox.ShellTool
 import org.baizey.runtime.AgentRuntime
 import org.baizey.runtime.AppConfig
 import org.baizey.runtime.McpToolFilterProfile
@@ -121,15 +120,11 @@ class HarnessSession(
 ) {
     private val pathPolicyLogic = UserPathPolicyLogic(interactionPort)
     private val gitPolicyLogic = UserGitPolicyLogic(interactionPort)
-    private val sandboxService = runCatching { AppConfig.sandbox }.getOrNull()
-        ?.takeIf { it.enabled }
-        ?.let { sandboxConfig ->
-            AgentShSandboxService(
-                config = sandboxConfig,
-                pathPolicyLogic = pathPolicyLogic,
-                agentId = UUID.randomUUID().toString()
-            )
-        }
+    private val sandboxService = AgentShSandboxService(
+        config = AppConfig.sandbox,
+        pathPolicyLogic = pathPolicyLogic,
+        agentId = UUID.randomUUID().toString()
+    )
     private val agentContext = AgenticInstanceContext(
         core = CoreContext(
             systemPrompt = "",
@@ -145,10 +140,8 @@ class HarnessSession(
         tools = ToolContext(
             profile = ToolFilterProfileStore.everythingProfile(),
             mcpProfile = McpToolFilterProfileStore.everythingProfile(),
-            onPathPolicyChanged = { sandboxService?.refreshPolicy() },
-            tools = buildList {
-                sandboxService?.let { add(ShellTool(it)) }
-            }
+            sandbox = sandboxService,
+            onPathPolicyChanged = { sandboxService.refreshPolicy() },
         )
     )
     private val lock = Any()
@@ -361,7 +354,7 @@ class HarnessSession(
     }
 
     fun close() {
-        sandboxService?.close()
+        sandboxService.close()
     }
 
     private fun runConversation(initialPrompt: String) {
