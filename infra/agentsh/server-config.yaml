@@ -29,8 +29,8 @@ policies:
   default: "default"
 
 security:
-  mode: "auto"
-  strict: false
+  mode: "full"
+  strict: true
   warn_degraded: true
 
 landlock:
@@ -57,6 +57,8 @@ landlock:
     - /usr/lib/**
     - /usr/local/bin
     - /usr/local/bin/**
+    - /usr/local/lib
+    - /usr/local/lib/**
   deny_paths:
     - /var/run/docker.sock
     - /run/containerd/containerd.sock
@@ -66,7 +68,7 @@ capabilities:
 
 sandbox:
   enabled: true
-  allow_degraded: true
+  allow_degraded: false
   fuse:
     enabled: true
     audit:
@@ -81,8 +83,8 @@ sandbox:
     intercept_mode: "all"
     proxy_listen_addr: "127.0.0.1:0"
     ebpf:
-      enabled: false
-      required: false
+      enabled: true
+      required: true
   cgroups:
     enabled: false
   unix_sockets:

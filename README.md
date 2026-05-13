@@ -131,17 +131,16 @@ docker build -t arch-agentsh:latest .\infra\agentsh
 Smoke-test it without an agent:
 
 ```powershell
-docker run -d --privileged --name arch-agentsh-smoke -p 18080:18080 -e AGENTSH_API_KEY=sk-local-smoke-test arch-agentsh:latest
+docker run -d --init --privileged --name arch-agentsh-smoke -p 18080:18080 -e AGENTSH_API_KEY=sk-local-smoke-test arch-agentsh:latest
 Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:18080/health -Headers @{ 'X-API-Key' = 'sk-local-smoke-test' }
 docker exec arch-agentsh-smoke /usr/bin/agentsh --api-key sk-local-smoke-test session create --workspace /workspace
 ```
 
 The included `sk-local-smoke-test` API key is only for local container smoke tests. The `--privileged` flag is required for the current FUSE/seccomp smoke-test path.
 
-Enable sandbox settings in `.env`:
+Configure sandbox settings in `.env`:
 
 ```dotenv
-AGENT_SANDBOX_ENABLED=true
 AGENT_SANDBOX_IMAGE=arch-agentsh:latest
 AGENT_SANDBOX_API_KEY=sk-local-smoke-test
 AGENT_SANDBOX_HOST_ROOT=C:\
@@ -153,7 +152,7 @@ AGENT_SANDBOX_PORT_START=18080
 
 Per-agent policy is selected with `AGENTSH_POLICY_NAME` inside each container. Policies live under `<ARCH_HOME>/system/sandbox/policies`. The image includes a permissive audit-first `default` policy for initial local testing.
 
-When sandboxing is enabled, the built-in `shell` tool executes commands through AgentSH and the built-in `ask_path_permission` tool can prompt the user for a new filesystem allowance or denial, then rebuild the per-agent AgentSH policy before the next sandbox session is used.
+The built-in `shell` tool always executes commands through AgentSH. The built-in `ask_path_permission` tool can prompt the user for a new filesystem allowance or denial, then rebuild the per-agent AgentSH policy before the next sandbox session is used.
 
 ## MCP Configuration
 

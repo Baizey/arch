@@ -64,8 +64,15 @@ class AgentShPathPolicyRendererTest {
         assertTrue(yaml.contains("decision: deny"), yaml)
         assertTrue(yaml.contains("name: \"allow-container-runtime-executables\""), yaml)
         assertTrue(yaml.contains("- \"/usr/bin/**\""), yaml)
+        assertTrue(yaml.contains("- \"access\""), yaml)
+        assertTrue(yaml.contains("name: \"allow-container-root-metadata\""), yaml)
+        assertTrue(yaml.contains("- \"/\""), yaml)
         assertTrue(yaml.contains("name: \"allow-container-runtime-libraries\""), yaml)
         assertTrue(yaml.contains("- \"/lib/**\""), yaml)
+        assertTrue(yaml.contains("- \"/dev/tty\""), yaml)
+        assertTrue(yaml.contains("name: \"allow-agentsh-session-metadata\""), yaml)
+        assertTrue(yaml.contains("- \"/var/lib/agentsh/sessions/**\""), yaml)
+        assertTrue(yaml.contains("name: \"allow-agentsh-global-stat\""), yaml)
         assertTrue(yaml.contains("name: \"default-deny-files\""), yaml)
         assertFalse(yaml.contains("outside"), yaml)
         assertTrue(
@@ -74,6 +81,14 @@ class AgentShPathPolicyRendererTest {
         )
         assertTrue(
             yaml.indexOf("allow-container-runtime-libraries") < yaml.indexOf("default-deny-files"),
+            yaml
+        )
+        assertTrue(
+            yaml.indexOf("/host/workspace/private") < yaml.indexOf("allow-agentsh-global-stat"),
+            yaml
+        )
+        assertTrue(
+            yaml.indexOf("allow-agentsh-global-stat") < yaml.indexOf("default-deny-files"),
             yaml
         )
     }

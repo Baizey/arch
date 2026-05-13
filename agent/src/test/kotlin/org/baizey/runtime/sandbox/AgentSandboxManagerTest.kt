@@ -49,6 +49,7 @@ class AgentSandboxManagerTest {
         val args = runner.commands.single()
         assertEquals("run", args[0])
         assertTrue(args.contains("-d"))
+        assertTrue(args.contains("--init"))
         assertTrue(args.contains("--privileged"))
         assertTrue(args.contains("arch-agentsh-1"))
         assertTrue(args.contains("19000:18080"))

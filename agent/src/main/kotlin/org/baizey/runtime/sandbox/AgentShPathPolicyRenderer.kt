@@ -20,6 +20,7 @@ class AgentShPathPolicyRenderer(
                     .sortedByDescending { it.pattern.length }
                     .mapNotNull { policy -> policy.toRule(hostRoot) }
             )
+            add(agentShGlobalStatRule())
             add(
                 FileRule(
                     name = "default-deny-files",
@@ -40,16 +41,16 @@ class AgentShPathPolicyRenderer(
             rules.forEach { appendFileRule(it) }
             appendLine()
             appendLine("command_rules:")
-            appendLine("  - name: audit-all-commands")
+            appendLine("  - name: allow-all-commands")
             appendLine("    commands:")
             appendLine("      - ${yamlScalar("*")}")
-            appendLine("    decision: audit")
+            appendLine("    decision: allow")
             appendLine()
             appendLine("network_rules:")
-            appendLine("  - name: audit-all-network")
+            appendLine("  - name: allow-all-network")
             appendLine("    domains:")
             appendLine("      - ${yamlScalar("*")}")
-            appendLine("    decision: audit")
+            appendLine("    decision: allow")
             appendLine()
             appendLine("audit:")
             appendLine("  log_allowed: true")
@@ -62,7 +63,15 @@ class AgentShPathPolicyRenderer(
     }
 
     private fun containerRuntimeRules(): List<FileRule> {
+        val runtimeReadOperations = listOf("read", "open", "stat", "list", "readlink", "access")
         return listOf(
+            FileRule(
+                name = "allow-container-root-metadata",
+                paths = listOf("/"),
+                operations = listOf("open", "stat", "list", "readlink", "access"),
+                decision = "allow",
+                message = "Allow shell startup to inspect the container root without granting recursive filesystem access."
+            ),
             FileRule(
                 name = "allow-container-runtime-executables",
                 paths = listOf(
@@ -73,7 +82,7 @@ class AgentShPathPolicyRenderer(
                     "/usr/local/bin",
                     "/usr/local/bin/**"
                 ),
-                operations = listOf("read", "open", "stat", "list", "readlink", "execute"),
+                operations = runtimeReadOperations + "execute",
                 decision = "allow",
                 message = "Allow sandbox commands to execute container runtime binaries."
             ),
@@ -91,7 +100,7 @@ class AgentShPathPolicyRenderer(
                     "/usr/local/lib",
                     "/usr/local/lib/**"
                 ),
-                operations = listOf("read", "open", "stat", "list", "readlink"),
+                operations = runtimeReadOperations,
                 decision = "allow",
                 message = "Allow dynamically linked sandbox binaries to load their runtime files."
             ),
@@ -101,9 +110,10 @@ class AgentShPathPolicyRenderer(
                     "/dev/null",
                     "/dev/zero",
                     "/dev/random",
-                    "/dev/urandom"
+                    "/dev/urandom",
+                    "/dev/tty"
                 ),
-                operations = listOf("read", "open", "stat", "readlink", "write"),
+                operations = runtimeReadOperations + "write",
                 decision = "allow",
                 message = "Allow standard device files required by common command-line tools."
             ),
@@ -113,9 +123,19 @@ class AgentShPathPolicyRenderer(
                     "/proc",
                     "/proc/**"
                 ),
-                operations = listOf("read", "open", "stat", "list", "readlink"),
+                operations = runtimeReadOperations,
                 decision = "allow",
                 message = "Allow read-only process metadata needed by common command-line tools."
+            ),
+            FileRule(
+                name = "allow-agentsh-session-metadata",
+                paths = listOf(
+                    "/var/lib/agentsh/sessions",
+                    "/var/lib/agentsh/sessions/**"
+                ),
+                operations = runtimeReadOperations,
+                decision = "allow",
+                message = "Allow AgentSH session mount metadata needed for sandbox working directories."
             ),
             FileRule(
                 name = "allow-container-runtime-temp",
@@ -129,6 +149,16 @@ class AgentShPathPolicyRenderer(
                 decision = "allow",
                 message = "Allow temporary files inside the disposable sandbox container."
             )
+        )
+    }
+
+    private fun agentShGlobalStatRule(): FileRule {
+        return FileRule(
+            name = "allow-agentsh-global-stat",
+            paths = listOf("**"),
+            operations = listOf("stat"),
+            decision = "allow",
+            message = "Allow AgentSH to stat the virtual workspace root during command startup without granting content access."
         )
     }
 
@@ -177,11 +207,11 @@ class AgentShPathPolicyRenderer(
 
     private fun FsAccessType.agentShOperations(): List<String> {
         return when (this) {
-            FsAccessType.READ -> listOf("read", "open", "stat", "list", "readlink")
+            FsAccessType.READ -> listOf("read", "open", "stat", "list", "readlink", "access")
             FsAccessType.WRITE,
-            FsAccessType.EDIT -> listOf("write", "create", "mkdir", "chmod", "rename")
-            FsAccessType.DELETE -> listOf("delete", "rmdir")
-            FsAccessType.EXECUTE -> listOf("execute")
+            FsAccessType.EDIT -> listOf("write", "create", "mkdir", "chmod", "rename", "open", "stat", "access")
+            FsAccessType.DELETE -> listOf("delete", "rmdir", "stat", "list", "readlink", "access")
+            FsAccessType.EXECUTE -> listOf("execute", "access", "stat", "open", "read", "readlink")
         }
     }
 

@@ -36,6 +36,10 @@ data class AppConfigInstance(
     companion object {
         fun load(workingDirectory: Path = Path(System.getProperty("user.dir"))): AppConfigInstance {
             val values = DotEnvFile.loadFromWorkingDirectory(workingDirectory)
+            values.rejectFalseBoolean(
+                "AGENT_SANDBOX_ENABLED",
+                "AgentSH sandboxing is always enabled. Remove AGENT_SANDBOX_ENABLED and configure AGENT_SANDBOX_* settings instead."
+            )
 
             val storage = StorageConfig(
                 homeDirectory = values.optionalPath("ARCH_HOME")
@@ -228,6 +232,15 @@ internal class DotEnvValues(
     }
 
     fun optionalString(name: String): String? = values[name].normalize()
+
+    fun rejectFalseBoolean(name: String, message: String) {
+        val rawValue = optionalString(name) ?: return
+        when (rawValue.lowercase()) {
+            "true", "1", "yes", "y", "on" -> return
+            "false", "0", "no", "n", "off" -> throw IllegalArgumentException(message)
+            else -> throw IllegalArgumentException("$name must be a boolean.")
+        }
+    }
 
     fun requiredInt(name: String): Int {
         val rawValue = requiredString(name)

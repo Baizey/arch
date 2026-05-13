@@ -43,6 +43,7 @@ class AgentSandboxManager(
             buildList {
                 add("run")
                 add("-d")
+                add("--init")
                 add("--name")
                 add(containerName)
                 if (config.privileged) {
@@ -82,8 +83,10 @@ class AgentSandboxManager(
         docker.run(listOf("rm", "-f", handle.containerName))
     }
 
-    fun syncPathPolicy(handle: AgentSandboxHandle, pathPolicyLogic: PathPolicyLogic) {
-        writePathPolicy(handle.policyName, pathPolicyLogic)
+    fun syncPathPolicy(policyName: String, pathPolicyLogic: PathPolicyLogic): String {
+        val effectivePolicyName = policyName.toContainerToken()
+        writePathPolicy(effectivePolicyName, pathPolicyLogic)
+        return effectivePolicyName
     }
 
     private fun bindMount(source: Path, target: String, readOnly: Boolean = false): String {
@@ -164,14 +167,14 @@ class ProcessDockerCommandRunner(private val dockerCommand: String) : DockerComm
     }
 }
 
-private fun String.toContainerToken(): String {
+internal fun String.toContainerToken(): String {
     val token = lowercase()
         .replace(Regex("[^a-z0-9_.-]+"), "-")
         .trim('-', '.', '_')
     return token.ifBlank { "agent" }
 }
 
-private fun String.toAgentContainerToken(): String {
+internal fun String.toAgentContainerToken(): String {
     return toContainerToken()
         .removePrefix("agent-")
         .ifBlank { "agent" }

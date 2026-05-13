@@ -95,6 +95,27 @@ class AppConfigTest {
     }
 
     @Test
+    fun `config rejects disabled sandbox flag because AgentSH is always enabled`(@TempDir tempDir: Path) {
+        tempDir.resolve(".env").writeText(
+            """
+            AGENT_CONSOLE_HOST=127.0.0.1
+            AGENT_CONSOLE_PORT=8420
+            OLLAMA_BASE_URL=http://localhost:11434
+            AGENT_SANDBOX_ENABLED=false
+            """.trimIndent()
+        )
+
+        val exception = assertThrows(IllegalArgumentException::class.java) {
+            AppConfigInstance.load(tempDir)
+        }
+
+        assertEquals(
+            "AgentSH sandboxing is always enabled. Remove AGENT_SANDBOX_ENABLED and configure AGENT_SANDBOX_* settings instead.",
+            exception.message
+        )
+    }
+
+    @Test
     fun `arch home is the system root when customized`(@TempDir tempDir: Path) {
         val archHome = tempDir.resolve("custom-arch-root")
         tempDir.resolve(".env").writeText(

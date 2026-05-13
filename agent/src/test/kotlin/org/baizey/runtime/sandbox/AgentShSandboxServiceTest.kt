@@ -41,17 +41,71 @@ class AgentShSandboxServiceTest {
         assertEquals(
             listOf(
                 "/usr/bin/env",
-                "-u",
-                "BASH_ENV",
                 "HOME=/tmp",
-                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "PATH=/usr/local/bin:/usr/bin:/bin",
                 "/usr/bin/bash.real",
                 "--noprofile",
                 "--norc",
                 "-c",
                 "ls -la /host/Repositories/small_agent/agent"
             ),
-            execArgs.takeLast(10)
+            execArgs.takeLast(8)
+        )
+    }
+
+    @Test
+    fun `exec rewrites forward slash Windows host paths before running command`(@TempDir tempDir: Path) {
+        val execArgs = mutableListOf<String>()
+        val service = AgentShSandboxService(
+            config = sandboxConfig(tempDir, Path.of("C:\\")),
+            pathPolicyLogic = ServiceTestPathPolicyLogic(),
+            agentId = "agent-1",
+            hostWorkingDirectory = tempDir,
+            docker = SequencedDockerRunner(mutableListOf()),
+            readinessWaiter = { _, _ -> },
+            dockerAllowFailureRunner = { _, args ->
+                execArgs += args
+                0 to """{"result":{"exit_code":0,"stdout":"ARCH TEST FILE FROM SHELL ONLY","stderr":""},"events":{"blocked_operations":[]}}"""
+            }
+        )
+
+        val result = service.exec(
+            """echo "ARCH TEST FILE FROM SHELL ONLY" > "C:/Repositories/small_agent/agent/example.txt" && cat "C:/Repositories/small_agent/agent/example.txt"""",
+            5.seconds
+        )
+
+        assertEquals("ARCH TEST FILE FROM SHELL ONLY", result.stdout)
+        assertEquals(
+            """echo "ARCH TEST FILE FROM SHELL ONLY" > "/host/Repositories/small_agent/agent/example.txt" && cat "/host/Repositories/small_agent/agent/example.txt"""",
+            execArgs.last()
+        )
+    }
+
+    @Test
+    fun `exec rewrites Windows type nul empty file idiom before running command`(@TempDir tempDir: Path) {
+        val execArgs = mutableListOf<String>()
+        val service = AgentShSandboxService(
+            config = sandboxConfig(tempDir, Path.of("C:\\")),
+            pathPolicyLogic = ServiceTestPathPolicyLogic(),
+            agentId = "agent-1",
+            hostWorkingDirectory = tempDir,
+            docker = SequencedDockerRunner(mutableListOf()),
+            readinessWaiter = { _, _ -> },
+            dockerAllowFailureRunner = { _, args ->
+                execArgs += args
+                0 to """{"result":{"exit_code":0,"stdout":"","stderr":""},"events":{"blocked_operations":[]}}"""
+            }
+        )
+
+        val result = service.exec(
+            """type nul > "C:/Repositories/small_agent/agent/src/test/kotlin/org/baizey/runtime/sandbox/example.txt"""",
+            5.seconds
+        )
+
+        assertEquals("", result.stdout)
+        assertEquals(
+            """: > "/host/Repositories/small_agent/agent/src/test/kotlin/org/baizey/runtime/sandbox/example.txt"""",
+            execArgs.last()
         )
     }
 
@@ -79,12 +133,46 @@ class AgentShSandboxServiceTest {
         assertEquals("not ready", exception.message)
         assertEquals(listOf("run", "ready-failed", "stop"), events)
     }
+
+    @Test
+    fun `refreshPolicy recreates the session with a revisioned policy name`(@TempDir tempDir: Path) {
+        val events = mutableListOf<String>()
+        val docker = SequencedDockerRunner(events)
+        val service = AgentShSandboxService(
+            config = sandboxConfig(tempDir),
+            pathPolicyLogic = ServiceTestPathPolicyLogic(),
+            agentId = "agent-1",
+            hostWorkingDirectory = tempDir,
+            docker = docker,
+            readinessWaiter = { _, _ -> events += "ready" },
+            dockerAllowFailureRunner = { _, _ ->
+                events += "exec"
+                0 to """{"result":{"exit_code":0,"stdout":"","stderr":""},"events":{"blocked_operations":[]}}"""
+            }
+        )
+
+        service.exec("pwd", 5.seconds)
+        service.refreshPolicy()
+
+        val createdPolicies = docker.commands
+            .filter { it.contains("session") && it.contains("create") }
+            .map { args -> args[args.indexOf("--policy") + 1] }
+
+        assertEquals(listOf("agent-1-policy-0", "agent-1-policy-1"), createdPolicies)
+        assertEquals(
+            listOf("run", "ready", "session-create", "exec", "session-destroy", "session-create"),
+            events
+        )
+    }
 }
 
 private class SequencedDockerRunner(
     private val events: MutableList<String>
 ) : DockerCommandRunner {
+    val commands = mutableListOf<List<String>>()
+
     override fun run(args: List<String>): String {
+        commands.add(args)
         return when {
             args.firstOrNull() == "run" -> {
                 events += "run"
@@ -101,7 +189,10 @@ private class SequencedDockerRunner(
                 """{"id":"session-1"}"""
             }
 
-            args.contains("session") && args.contains("destroy") -> "destroyed"
+            args.contains("session") && args.contains("destroy") -> {
+                events += "session-destroy"
+                "destroyed"
+            }
             else -> error("Unexpected docker args: $args")
         }
     }

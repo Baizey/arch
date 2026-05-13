@@ -31,6 +31,7 @@ class AgentShSandboxService(
 
     private var handle: AgentSandboxHandle? = null
     private var sessionId: String? = null
+    private var policyRevision = 0
 
     fun exec(command: String, timeout: Duration): SandboxShellResult {
         require(command.isNotBlank()) { "Command cannot be blank." }
@@ -46,8 +47,11 @@ class AgentShSandboxService(
     fun refreshPolicy() {
         synchronized(lock) {
             val activeHandle = handle ?: return
-            manager.syncPathPolicy(activeHandle, pathPolicyLogic)
-            recreateSession(activeHandle)
+            policyRevision += 1
+            val nextPolicyName = manager.syncPathPolicy(policyNameForRevision(), pathPolicyLogic)
+            val updatedHandle = activeHandle.copy(policyName = nextPolicyName)
+            handle = updatedHandle
+            recreateSession(updatedHandle)
         }
     }
 
@@ -90,6 +94,7 @@ class AgentShSandboxService(
 
         val created = manager.start(
             agentId = agentId,
+            policyName = policyNameForRevision(),
             pathPolicyLogic = pathPolicyLogic
         )
         try {
@@ -109,6 +114,10 @@ class AgentShSandboxService(
         val created = createSession(handle)
         sessionId = created
         return created
+    }
+
+    private fun policyNameForRevision(): String {
+        return "agent-${agentId.toAgentContainerToken()}-policy-$policyRevision"
     }
 
     private fun recreateSession(handle: AgentSandboxHandle) {
@@ -180,10 +189,8 @@ class AgentShSandboxService(
                 "${timeout.inWholeSeconds}s",
                 "--",
                 "/usr/bin/env",
-                "-u",
-                "BASH_ENV",
                 "HOME=/tmp",
-                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "PATH=/usr/local/bin:/usr/bin:/bin",
                 "/usr/bin/bash.real",
                 "--noprofile",
                 "--norc",
@@ -239,11 +246,18 @@ class AgentShSandboxService(
     }
 
     private fun rewriteHostPathsForSandbox(command: String, handle: AgentSandboxHandle): String {
-        var rewritten = rewriteMalformedMountedWindowsPaths(command, handle)
+        var rewritten = rewriteWindowsCommandIdioms(command)
+        rewritten = rewriteMalformedMountedWindowsPaths(rewritten, handle)
         rewritten = rewriteQuotedWindowsPaths(rewritten, handle, '"')
         rewritten = rewriteQuotedWindowsPaths(rewritten, handle, '\'')
         return WINDOWS_UNQUOTED_PATH_REGEX.replace(rewritten) { match ->
             mapWindowsPathToSandbox(match.value, handle) ?: match.value
+        }
+    }
+
+    private fun rewriteWindowsCommandIdioms(command: String): String {
+        return WINDOWS_TYPE_NUL_REDIRECT_REGEX.replace(command) { match ->
+            "${match.groupValues[1]}: ${match.groupValues[2]}"
         }
     }
 
@@ -290,9 +304,10 @@ class AgentShSandboxService(
     }
 }
 
-private val WINDOWS_DOUBLE_QUOTED_PATH_REGEX = Regex("\"([A-Za-z]:\\\\[^\"]*)\"")
-private val WINDOWS_SINGLE_QUOTED_PATH_REGEX = Regex("'([A-Za-z]:\\\\[^']*)'")
-private val WINDOWS_UNQUOTED_PATH_REGEX = Regex("""(?<![\w/])([A-Za-z]:\\[^\s"'`|&;()<>]+)""")
+private val WINDOWS_DOUBLE_QUOTED_PATH_REGEX = Regex("\"([A-Za-z]:[\\\\/][^\"]*)\"")
+private val WINDOWS_SINGLE_QUOTED_PATH_REGEX = Regex("'([A-Za-z]:[\\\\/][^']*)'")
+private val WINDOWS_UNQUOTED_PATH_REGEX = Regex("""(?<![\w/])([A-Za-z]:[\\/][^\s"'`|&;()<>]+)""")
+private val WINDOWS_TYPE_NUL_REDIRECT_REGEX = Regex("""(?i)(^|[;&|]\s*)type\s+nul\s*(>{1,2})""")
 
 private fun runDockerAllowFailure(dockerCommand: String, args: List<String>): Pair<Int, String> {
     val process = ProcessBuilder(listOf(dockerCommand) + args)
