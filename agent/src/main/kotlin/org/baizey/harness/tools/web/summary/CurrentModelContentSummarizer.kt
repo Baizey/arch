@@ -10,7 +10,6 @@ import org.baizey.harness.policy.shared.PolicyLifetime
 import org.baizey.harness.tools.fetch.WebsiteDocument
 import org.baizey.harness.tools.search.FetchedSearchResultContent
 import org.baizey.harness.tools.search.WebSearchResponse
-import org.baizey.runtime.AppConfig
 import org.baizey.runtime.ToolFilterProfileStore
 import org.baizey.runtime.agentic.instance.AgenticInstanceContext
 import org.baizey.runtime.agentic.instance.AgentInstance
@@ -18,7 +17,6 @@ import org.baizey.runtime.agentic.instance.CoreContext
 import org.baizey.runtime.agentic.instance.PolicyContext
 import org.baizey.runtime.agentic.instance.ProviderType
 import org.baizey.runtime.agentic.instance.ToolContext
-import org.baizey.runtime.sandbox.AgentShSandboxService
 
 internal class CurrentModelContentSummarizer : ContentSummarizer {
     private val interactionPort = object : HarnessInteractionPort {
@@ -38,7 +36,6 @@ internal class CurrentModelContentSummarizer : ContentSummarizer {
         git = UserGitPolicyLogic(interactionPort),
         path = UserPathPolicyLogic(interactionPort)
     )
-    private val sandboxService = AgentShSandboxService(AppConfig.sandbox, policies.path, "current-model-content-summarizer")
 
     override fun summarizeSearchResults(
         query: String,
@@ -141,8 +138,7 @@ Include relevant URLs when they materially help the next step.""",
                 ),
                 policies = policies,
                 tools = ToolContext(
-                    profile = ToolFilterProfileStore.nothingProfile(),
-                    sandbox = sandboxService
+                    profile = ToolFilterProfileStore.nothingProfile()
                 )
             )
         )

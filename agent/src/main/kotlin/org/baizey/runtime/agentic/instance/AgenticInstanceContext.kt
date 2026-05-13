@@ -12,7 +12,6 @@ import org.baizey.harness.policy.PathPolicyLogic
 import org.baizey.harness.tools.AgentTools
 import org.baizey.runtime.*
 import org.baizey.runtime.agentic.instance.exceptions.AgentRunInterruptedException
-import org.baizey.runtime.sandbox.AgentShSandboxService
 import org.baizey.utils.IO.fromJson
 import org.baizey.utils.IO.readIfExists
 import java.util.*
@@ -136,7 +135,6 @@ data class RuntimeResources(
 data class ToolContext(
     val profile: ToolFilterProfile,
     val mcpProfile: McpToolFilterProfile = McpToolFilterProfileStore.everythingProfile(),
-    val sandbox: AgentShSandboxService,
     val onPathPolicyChanged: () -> Unit = {},
     val shouldInterruptBeforeToolExecution: () -> Boolean = { false },
     val shouldInterruptAfterToolExecution: () -> Boolean = { false }
@@ -150,7 +148,6 @@ data class ToolContext(
         return ToolContext(
             profile = profile,
             mcpProfile = mcpProfile,
-            sandbox = sandbox,
             onPathPolicyChanged = onPathPolicyChanged,
             shouldInterruptBeforeToolExecution = shouldInterruptBeforeToolExecution,
             shouldInterruptAfterToolExecution = shouldInterruptAfterToolExecution

@@ -13,7 +13,6 @@ import org.baizey.commands.utils.ModelSelectionResult
 import org.baizey.harness.policy.UserGitPolicyLogic
 import org.baizey.harness.policy.UserPathPolicyLogic
 import org.baizey.runtime.AgentRuntime
-import org.baizey.runtime.AppConfig
 import org.baizey.runtime.McpToolFilterProfile
 import org.baizey.runtime.McpToolFilterProfileStore
 import org.baizey.runtime.ToolFilterProfile
@@ -25,7 +24,6 @@ import org.baizey.runtime.agentic.instance.ProviderType
 import org.baizey.runtime.agentic.instance.exceptions.AgentRunInterruptedException
 import org.baizey.runtime.agentic.instance.SystemPrompt
 import org.baizey.runtime.agentic.instance.ToolContext
-import org.baizey.runtime.sandbox.AgentShSandboxService
 import java.util.ArrayDeque
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
@@ -120,11 +118,6 @@ class HarnessSession(
 ) {
     private val pathPolicyLogic = UserPathPolicyLogic(interactionPort)
     private val gitPolicyLogic = UserGitPolicyLogic(interactionPort)
-    private val sandboxService = AgentShSandboxService(
-        config = AppConfig.sandbox,
-        pathPolicyLogic = pathPolicyLogic,
-        agentId = UUID.randomUUID().toString()
-    )
     private val agentContext = AgenticInstanceContext(
         core = CoreContext(
             systemPrompt = "",
@@ -140,8 +133,7 @@ class HarnessSession(
         tools = ToolContext(
             profile = ToolFilterProfileStore.everythingProfile(),
             mcpProfile = McpToolFilterProfileStore.everythingProfile(),
-            sandbox = sandboxService,
-            onPathPolicyChanged = { sandboxService.refreshPolicy() },
+            onPathPolicyChanged = {},
         )
     )
     private val lock = Any()
@@ -354,7 +346,6 @@ class HarnessSession(
     }
 
     fun close() {
-        sandboxService.close()
     }
 
     private fun runConversation(initialPrompt: String) {

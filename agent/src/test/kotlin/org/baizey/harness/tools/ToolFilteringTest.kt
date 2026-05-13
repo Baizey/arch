@@ -8,7 +8,6 @@ import org.baizey.harness.PermissionRequest
 import org.baizey.harness.policy.UserGitPolicyLogic
 import org.baizey.harness.policy.UserPathPolicyLogic
 import org.baizey.harness.policy.shared.PolicyLifetime
-import org.baizey.runtime.AppConfig
 import org.baizey.runtime.ToolFilterMode
 import org.baizey.runtime.ToolFilterProfile
 import org.baizey.runtime.agentic.instance.AgenticInstanceContext
@@ -16,7 +15,6 @@ import org.baizey.runtime.agentic.instance.CoreContext
 import org.baizey.runtime.agentic.instance.PolicyContext
 import org.baizey.runtime.agentic.instance.ProviderType
 import org.baizey.runtime.agentic.instance.ToolContext
-import org.baizey.runtime.sandbox.AgentShSandboxService
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -33,7 +31,6 @@ class ToolFilteringTest {
     }
     private val pathPolicyLogic = UserPathPolicyLogic(interactionPort)
     private val gitPolicyLogic = UserGitPolicyLogic(interactionPort)
-    private val sandboxService = AgentShSandboxService(AppConfig.sandbox, pathPolicyLogic, "tool-filtering-test")
 
     @Test
     fun `disabling a group removes all tools in that group`() {
@@ -117,8 +114,7 @@ class ToolFilteringTest {
                 git = gitPolicyLogic
             ),
             tools = ToolContext(
-                profile = profile,
-                sandbox = sandboxService
+                profile = profile
             )
         )
     }

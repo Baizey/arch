@@ -21,25 +21,17 @@ object AppConfig {
 
     val webSearch: WebSearchConfig
         get() = config.webSearch
-
-    val sandbox: SandboxConfig
-        get() = config.sandbox
 }
 
 data class AppConfigInstance(
     val console: ConsoleConfig,
     val providers: ProviderConfig,
     val storage: StorageConfig,
-    val webSearch: WebSearchConfig,
-    val sandbox: SandboxConfig
+    val webSearch: WebSearchConfig
 ) {
     companion object {
         fun load(workingDirectory: Path = Path(System.getProperty("user.dir"))): AppConfigInstance {
             val values = DotEnvFile.loadFromWorkingDirectory(workingDirectory)
-            values.rejectFalseBoolean(
-                "AGENT_SANDBOX_ENABLED",
-                "AgentSH sandboxing is always enabled. Remove AGENT_SANDBOX_ENABLED and configure AGENT_SANDBOX_* settings instead."
-            )
 
             val storage = StorageConfig(
                 homeDirectory = values.optionalPath("ARCH_HOME")
@@ -72,27 +64,8 @@ data class AppConfigInstance(
                         apiKey = values.optionalString("GOOGLE_SEARCH_API_KEY"),
                         searchEngineId = values.optionalString("GOOGLE_SEARCH_ENGINE_ID")
                     )
-                ),
-                sandbox = SandboxConfig(
-                    dockerCommand = values.optionalString("AGENT_SANDBOX_DOCKER_COMMAND") ?: "docker",
-                    image = values.optionalString("AGENT_SANDBOX_IMAGE") ?: "arch-agentsh:latest",
-                    apiKey = values.optionalString("AGENT_SANDBOX_API_KEY") ?: "sk-local-smoke-test",
-                    hostRoot = values.optionalPath("AGENT_SANDBOX_HOST_ROOT") ?: defaultHostRoot(),
-                    containerHostRoot = values.optionalString("AGENT_SANDBOX_CONTAINER_HOST_ROOT") ?: "/host",
-                    policiesDirectory = storage.homeDirectory.resolve("system/sandbox/policies"),
-                    keysDirectory = storage.homeDirectory.resolve("system/sandbox/keys"),
-                    logsDirectory = storage.homeDirectory.resolve("system/logs/agentsh"),
-                    stateVolumePrefix = values.optionalString("AGENT_SANDBOX_STATE_VOLUME_PREFIX")
-                        ?: "arch-agentsh",
-                    portStart = values.optionalInt("AGENT_SANDBOX_PORT_START") ?: 18080,
-                    privileged = values.optionalBoolean("AGENT_SANDBOX_PRIVILEGED") ?: true
                 )
             )
-        }
-
-        private fun defaultHostRoot(): Path {
-            val userDir = Path(System.getProperty("user.dir")).toAbsolutePath()
-            return userDir.root ?: userDir
         }
     }
 }
@@ -132,29 +105,6 @@ data class WebSearchConfig(
     val brave: BraveSearchConfig,
     val google: GoogleSearchConfig
 )
-
-data class SandboxConfig(
-    val dockerCommand: String,
-    val image: String,
-    val apiKey: String,
-    val hostRoot: Path,
-    val containerHostRoot: String,
-    val policiesDirectory: Path,
-    val keysDirectory: Path,
-    val logsDirectory: Path,
-    val stateVolumePrefix: String,
-    val portStart: Int,
-    val privileged: Boolean
-) {
-    init {
-        require(dockerCommand.isNotBlank()) { "AGENT_SANDBOX_DOCKER_COMMAND cannot be blank." }
-        require(image.isNotBlank()) { "AGENT_SANDBOX_IMAGE cannot be blank." }
-        require(apiKey.isNotBlank()) { "AGENT_SANDBOX_API_KEY cannot be blank." }
-        require(containerHostRoot.startsWith("/")) { "AGENT_SANDBOX_CONTAINER_HOST_ROOT must be an absolute container path." }
-        require(stateVolumePrefix.isNotBlank()) { "AGENT_SANDBOX_STATE_VOLUME_PREFIX cannot be blank." }
-        require(portStart in 1..65535) { "AGENT_SANDBOX_PORT_START must be between 1 and 65535." }
-    }
-}
 
 data class BingSearchConfig(
     val apiKey: String?
