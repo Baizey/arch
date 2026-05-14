@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -9,10 +9,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     coreutils \
     curl \
     file \
+    findutils \
     fuse3 \
+    gawk \
     git \
     jq \
-    libfuse3-3 \
+    yq \
+    httpie \
+    netcat-openbsd \
+    rsync \
+    sed \
+    tar \
+    perl \
+    libfuse3-4 \
     libfuse3-dev \
     nodejs \
     npm \
@@ -23,8 +32,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-trio \
     python3-pip \
     python3-venv \
+    wget \
     ripgrep \
-    rsync \
     strace \
     tini \
   && rm -rf /var/lib/apt/lists/*
@@ -39,6 +48,7 @@ RUN mkdir -p \
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY sandbox_daemon.py /usr/local/bin/sandbox_daemon.py
+COPY sandbox_policy.py /usr/local/bin/sandbox_policy.py
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/sandbox_daemon.py
 
@@ -46,5 +56,5 @@ WORKDIR /arch/workspace
 
 EXPOSE 18080
 
-ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "-s", "--", "/usr/local/bin/docker-entrypoint.sh"]
 CMD ["python3", "/usr/local/bin/sandbox_daemon.py"]
