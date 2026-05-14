@@ -1,50 +1,50 @@
 FROM ubuntu:24.04
 
-ARG AGENTSH_VERSION=0.19.2
-ARG TARGETARCH=amd64
-
 ENV DEBIAN_FRONTEND=noninteractive
-ENV AGENTSH_CONFIG=/etc/agentsh/server-config.yaml
-ENV AGENTSH_SHIM_FORCE=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    curl \
-    jq \
     bash \
+    build-essential \
+    ca-certificates \
+    coreutils \
+    curl \
+    file \
+    fuse3 \
     git \
-    ripgrep \
-    procps \
-    python3 \
-    python3-pip \
-    python3-venv \
+    jq \
+    libfuse3-3 \
+    libfuse3-dev \
     nodejs \
     npm \
-    openjdk-25-jdk \
-    gradle \
+    openjdk-21-jdk-headless \
+    procps \
+    python3 \
+    python3-pyfuse3 \
+    python3-trio \
+    python3-pip \
+    python3-venv \
+    ripgrep \
+    rsync \
+    strace \
+    tini \
   && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL -o /tmp/agentsh.deb \
-    "https://github.com/canyonroad/agentsh/releases/download/v${AGENTSH_VERSION}/agentsh_${AGENTSH_VERSION}_linux_${TARGETARCH}.deb" \
-  && apt-get update \
-  && apt-get install -y /tmp/agentsh.deb \
-  && rm -f /tmp/agentsh.deb \
-  && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p \
+    /arch/backing \
+    /arch/mount \
+    /arch/policy \
+    /arch/workspace \
+    /var/log/arch-sandbox \
+    /var/lib/arch-sandbox
 
-COPY server-config.yaml /etc/agentsh/server-config.yaml
-COPY api_keys.yaml /etc/agentsh/api_keys.yaml
-COPY policies/default.yaml /etc/agentsh/policies/default.yaml
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY sandbox_daemon.py /usr/local/bin/sandbox_daemon.py
 
-RUN mkdir -p /var/log/agentsh /var/lib/agentsh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/sandbox_daemon.py
 
-RUN agentsh shim install-shell \
-    --root / \
-    --shim /usr/bin/agentsh-shell-shim \
-    --bash \
-    --i-understand-this-modifies-the-host
-
-WORKDIR /workspace
+WORKDIR /arch/workspace
 
 EXPOSE 18080
 
-CMD ["agentsh", "server", "--config", "/etc/agentsh/server-config.yaml"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
+CMD ["python3", "/usr/local/bin/sandbox_daemon.py"]

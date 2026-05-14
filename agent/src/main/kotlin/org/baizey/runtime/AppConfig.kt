@@ -1,6 +1,7 @@
 package org.baizey.runtime
 
 import java.net.URI
+import java.net.ServerSocket
 import java.nio.file.Path
 import kotlin.io.path.Path
 import kotlin.io.path.exists
@@ -21,13 +22,17 @@ object AppConfig {
 
     val webSearch: WebSearchConfig
         get() = config.webSearch
+
+    val sandbox: SandboxConfig
+        get() = config.sandbox
 }
 
 data class AppConfigInstance(
     val console: ConsoleConfig,
     val providers: ProviderConfig,
     val storage: StorageConfig,
-    val webSearch: WebSearchConfig
+    val webSearch: WebSearchConfig,
+    val sandbox: SandboxConfig
 ) {
     companion object {
         fun load(workingDirectory: Path = Path(System.getProperty("user.dir"))): AppConfigInstance {
@@ -64,6 +69,17 @@ data class AppConfigInstance(
                         apiKey = values.optionalString("GOOGLE_SEARCH_API_KEY"),
                         searchEngineId = values.optionalString("GOOGLE_SEARCH_ENGINE_ID")
                     )
+                ),
+                sandbox = SandboxConfig(
+                    dockerCommand = values.optionalString("AGENT_SANDBOX_DOCKER_COMMAND") ?: "docker",
+                    image = values.optionalString("AGENT_SANDBOX_IMAGE") ?: "arch-agentsh:latest",
+                    workspaceHostPath = values.optionalPath("AGENT_SANDBOX_WORKSPACE_HOST_PATH")
+                        ?: Path(System.getProperty("user.dir")).toAbsolutePath().normalize(),
+                    backingContainerPath = values.optionalString("AGENT_SANDBOX_BACKING_CONTAINER_PATH") ?: "/arch/backing",
+                    workspaceContainerPath = values.optionalString("AGENT_SANDBOX_WORKSPACE_CONTAINER_PATH") ?: "/arch/workspace",
+                    containerNamePrefix = values.optionalString("AGENT_SANDBOX_CONTAINER_NAME_PREFIX") ?: "arch-agent",
+                    hostPortStart = values.optionalInt("AGENT_SANDBOX_PORT_START") ?: 18080,
+                    containerPort = values.optionalInt("AGENT_SANDBOX_CONTAINER_PORT") ?: 18080
                 )
             )
         }
@@ -105,6 +121,42 @@ data class WebSearchConfig(
     val brave: BraveSearchConfig,
     val google: GoogleSearchConfig
 )
+
+data class SandboxConfig(
+    val dockerCommand: String,
+    val image: String,
+    val workspaceHostPath: Path,
+    val backingContainerPath: String,
+    val workspaceContainerPath: String,
+    val containerNamePrefix: String,
+    val hostPortStart: Int,
+    val containerPort: Int
+) {
+    init {
+        require(dockerCommand.isNotBlank()) { "AGENT_SANDBOX_DOCKER_COMMAND cannot be blank." }
+        require(image.isNotBlank()) { "AGENT_SANDBOX_IMAGE cannot be blank." }
+        require(backingContainerPath.startsWith("/")) { "AGENT_SANDBOX_BACKING_CONTAINER_PATH must be absolute." }
+        require(workspaceContainerPath.startsWith("/")) { "AGENT_SANDBOX_WORKSPACE_CONTAINER_PATH must be absolute." }
+        require(containerNamePrefix.isNotBlank()) { "AGENT_SANDBOX_CONTAINER_NAME_PREFIX cannot be blank." }
+        require(hostPortStart in 1..65535) { "AGENT_SANDBOX_PORT_START must be between 1 and 65535." }
+        require(containerPort in 1..65535) { "AGENT_SANDBOX_CONTAINER_PORT must be between 1 and 65535." }
+    }
+}
+
+internal fun findAvailablePort(start: Int): Int {
+    for (port in start..65535) {
+        if (isPortAvailable(port)) return port
+    }
+    throw IllegalStateException("No available port at or above $start.")
+}
+
+private fun isPortAvailable(port: Int): Boolean {
+    return try {
+        ServerSocket(port).use { true }
+    } catch (_: Exception) {
+        false
+    }
+}
 
 data class BingSearchConfig(
     val apiKey: String?

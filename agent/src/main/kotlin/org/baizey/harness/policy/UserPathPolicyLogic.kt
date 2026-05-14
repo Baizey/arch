@@ -8,6 +8,7 @@ import org.baizey.harness.policy.path.PathAccessInspection
 import org.baizey.harness.policy.path.FsAccessType
 import org.baizey.harness.policy.path.PathPersistedPolicy
 import org.baizey.harness.policy.path.PathPolicy
+import org.baizey.harness.policy.path.PathPolicySnapshot
 import org.baizey.harness.policy.path.PathPolicyResult
 import org.baizey.harness.policy.shared.PolicyLifetime
 import org.baizey.runtime.AuditLog
@@ -72,6 +73,13 @@ class UserPathPolicyLogic(
         return activePolicies.map { policy ->
             policy.copy(accessTypes = policy.accessTypes.toMutableList())
         }
+    }
+
+    override fun snapshot(): PathPolicySnapshot {
+        return PathPolicySnapshot(
+            policies = activePathPolicies(),
+            deniedPathPrefixes = listOf(inaccessibleDir)
+        )
     }
 
     override fun evaluate(rawFilePath: String, accessType: FsAccessType): PathPolicyResult {

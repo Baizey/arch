@@ -25,7 +25,7 @@ data class BuiltInToolDescriptor(
 object BuiltInToolCatalog {
     val groups = listOf(
         BuiltInToolGroup("fs", "Filesystem", "File inspection and modification tools."),
-        BuiltInToolGroup("sandbox", "Sandbox", "Sandbox-backed execution tools."),
+        BuiltInToolGroup("sandbox", "Sandbox", "Container-backed execution tools."),
         BuiltInToolGroup("web", "Web", "Web search and website fetching tools."),
         BuiltInToolGroup("git", "Git", "Repository inspection and mutation tools."),
         BuiltInToolGroup("ask-user", "Ask User", "Question routing back to the user.")
@@ -38,7 +38,7 @@ object BuiltInToolCatalog {
         BuiltInToolSubgroup("fs-update", "fs", "Update", "Edit existing files in place."),
         BuiltInToolSubgroup("fs-move", "fs", "Move / Copy", "Move or copy filesystem paths."),
         BuiltInToolSubgroup("fs-delete", "fs", "Delete", "Delete filesystem paths."),
-        BuiltInToolSubgroup("sandbox-shell", "sandbox", "Shell", "Execute commands inside the AgentSH sandbox."),
+        BuiltInToolSubgroup("sandbox-shell", "sandbox", "Shell", "Execute commands inside the sandbox container."),
         BuiltInToolSubgroup("web-search", "web", "Search", "Discover candidate web pages."),
         BuiltInToolSubgroup("web-fetch", "web", "Fetch", "Read one chosen website."),
         BuiltInToolSubgroup("git-read", "git", "Read", "Inspect local repository state and history."),
@@ -58,7 +58,7 @@ object BuiltInToolCatalog {
         BuiltInToolDescriptor("write_file", "write_file", "fs", "fs-create", "Write File", "Create or overwrite a file."),
         BuiltInToolDescriptor("move_or_copy_path", "move_or_copy_path", "fs", "fs-move", "Move or Copy Path", "Move or copy a file or directory."),
         BuiltInToolDescriptor("delete_path", "delete_path", "fs", "fs-delete", "Delete Path", "Delete a file or directory."),
-        BuiltInToolDescriptor("shell", "shell", "sandbox", "sandbox-shell", "Shell", "Execute a shell command inside the AgentSH sandbox."),
+        BuiltInToolDescriptor("shell", "shell", "sandbox", "sandbox-shell", "Shell", "Execute a shell command inside the sandbox container."),
         BuiltInToolDescriptor("search_web", "search_web", "web", "web-search", "Search Web", "Search the public web for candidate pages."),
         BuiltInToolDescriptor("fetch_website", "fetch_website", "web", "web-fetch", "Fetch Website", "Fetch and read website content."),
         BuiltInToolDescriptor("git_status", "git_status", "git", "git-read", "Git Status", "Inspect repository status."),

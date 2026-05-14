@@ -1,4 +1,0 @@
-- id: "local-smoke"
-  key: "sk-local-smoke-test"
-  description: "Local AgentSH container smoke-test key."
-  allowed_sessions: 10
