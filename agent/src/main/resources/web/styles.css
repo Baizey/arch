@@ -562,6 +562,86 @@ button:disabled {
   gap: 24px;
 }
 
+.session-switcher {
+  display: grid;
+  gap: 12px;
+  width: min(420px, 100%);
+  min-width: 280px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: rgba(10, 15, 26, 0.92);
+}
+
+.session-switcher-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.session-switcher-header strong {
+  color: var(--heading);
+}
+
+.session-list {
+  display: grid;
+  gap: 8px;
+}
+
+.session-group {
+  display: grid;
+  gap: 8px;
+}
+
+.session-children {
+  display: grid;
+  gap: 8px;
+  padding-left: 16px;
+}
+
+.session-list-item {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  text-align: left;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+.session-list-item strong {
+  color: var(--heading);
+  font-size: 0.92rem;
+}
+
+.session-list-item[data-active="true"] {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.08), transparent 70%), var(--surface-strong);
+}
+
+.session-list-item[data-state="running"] {
+  border-color: color-mix(in srgb, var(--event-tool-pending) 36%, var(--border));
+}
+
+.session-list-item[data-state="attention"] {
+  border-color: color-mix(in srgb, var(--event-thinking) 36%, var(--border));
+}
+
+.session-list-item[data-kind="SUB_AGENT"] {
+  background: linear-gradient(180deg, rgba(148, 163, 184, 0.06), transparent 70%), var(--surface-strong);
+}
+
+.session-list-item:disabled {
+  opacity: 0.72;
+}
+
+.session-list-meta {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 h2 {
   font-size: clamp(1.45rem, 2.2vw, 1.95rem);
   color: var(--heading);
@@ -1357,6 +1437,11 @@ h2 {
     align-items: start;
   }
 
+  .session-switcher {
+    width: 100%;
+    min-width: 0;
+  }
+
   .controls > button {
     grid-column: span 2;
   }
@@ -1447,6 +1532,14 @@ h2 {
 
   .view-tabs {
     grid-auto-flow: row;
+  }
+
+  .session-switcher-header {
+    width: 100%;
+  }
+
+  .session-list {
+    grid-template-columns: 1fr;
   }
 
   .filter-editor-actions,

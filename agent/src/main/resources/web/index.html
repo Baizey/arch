@@ -23,6 +23,16 @@
                     <div>
                         <h2>Arch</h2>
                     </div>
+                    <section class="session-switcher" aria-label="Sessions">
+                        <div class="session-switcher-header">
+                            <div>
+                                <span class="summary-label">Sessions</span>
+                                <strong id="currentSessionLabel">Active session</strong>
+                            </div>
+                            <button id="createSessionButton" class="ghost" type="button">New Session</button>
+                        </div>
+                        <div id="sessionList" class="session-list" role="list"></div>
+                    </section>
                 </div>
 
                 <div id="stream" class="stream" aria-live="polite"></div>

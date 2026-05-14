@@ -15,6 +15,17 @@
  * @typedef {{ servers: McpToolFilterServer[], tools: McpToolFilterTool[] }} McpToolFilterCatalog
  * @typedef {{ id: string, name: string, provider: string, providerLabel: string }} SupportedModel
  * @typedef {{
+ *   sessionId: string,
+ *   kind: string,
+ *   parentSessionId?: string,
+ *   rootSessionId?: string,
+ *   updatedAtMs: number,
+ *   messageCount: number,
+ *   pendingMessageCount: number,
+ *   running: boolean,
+ *   label: string
+ * }} SessionSummary
+ * @typedef {{
  *   running: boolean,
  *   selectedModelId: string,
  *   modelLabel: string,
@@ -25,6 +36,8 @@
  *   pendingMessages: PendingMessage[]
  * }} HarnessSessionSnapshot
  * @typedef {{
+ *   currentSessionId?: string,
+ *   sessions: SessionSummary[],
  *   session: HarnessSessionSnapshot,
  *   pendingAskUsers: PendingAsk[],
  *   pendingPermissions: PendingPermission[],
@@ -54,6 +67,9 @@ const clearContextButtonEl = document.getElementById("clearContextButton");
 const sessionCardEl = document.getElementById("sessionCard");
 const statusHeadlineEl = document.getElementById("statusHeadline");
 const statusSummaryEl = document.getElementById("statusSummary");
+const currentSessionLabelEl = document.getElementById("currentSessionLabel");
+const createSessionButtonEl = document.getElementById("createSessionButton");
+const sessionListEl = document.getElementById("sessionList");
 const composerEl = document.getElementById("composer");
 const messageInputEl = document.getElementById("messageInput");
 const sendButtonEl = document.getElementById("sendButton");
@@ -190,6 +206,7 @@ const mcpToolFilterProfileDrafts = new Map();
 const feedExpansionState = new Map();
 let isSubmittingMessage = false;
 let isClearingContext = false;
+let isMutatingSession = false;
 let composerStatus = { state: "idle", text: "" };
 let composerStatusTimer = null;
 let lastKnownActiveContextSize = 0;
@@ -232,6 +249,7 @@ function render() {
   renderViewTabs();
   renderControls();
   renderSummary(feedItems);
+  renderSessionList();
   renderStream(feedItems, visibleFeedItems);
   renderFilterView();
   renderToolFilterView();
@@ -344,6 +362,74 @@ function renderSummary(feedItems) {
 
   statusHeadlineEl.textContent = "Ready";
   setOptionalText(statusSummaryEl, "");
+}
+
+function renderSessionList() {
+  const sessions = latestState?.sessions || [];
+  const currentSession = getCurrentSessionSummary();
+  currentSessionLabelEl.textContent = currentSession
+    ? currentSession.label || formatSessionLabel(currentSession.sessionId)
+    : "Active session";
+  createSessionButtonEl.disabled = isSessionMutationLocked();
+  createSessionButtonEl.textContent = isMutatingSession ? "Working..." : "New Session";
+
+  sessionListEl.replaceChildren();
+
+  const rootSessions = sessions.filter((session) => session.kind !== "SUB_AGENT");
+  const renderedSessionIds = new Set();
+
+  rootSessions.forEach((session) => {
+    sessionListEl.append(buildSessionListTree(session, sessions, renderedSessionIds));
+  });
+
+  sessions
+    .filter((session) => !renderedSessionIds.has(session.sessionId))
+    .forEach((session) => {
+      sessionListEl.append(buildSessionListTree(session, sessions, renderedSessionIds));
+    });
+}
+
+function createSessionListButton(session, isSubAgent = false) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "session-list-item";
+  button.dataset.state = resolveSessionState(session);
+  button.dataset.active = String(session.sessionId === latestState.currentSessionId);
+  button.dataset.kind = session.kind;
+  button.disabled = isSessionMutationLocked() || session.sessionId === latestState.currentSessionId;
+
+  const label = document.createElement("strong");
+  label.textContent = session.label || formatSessionLabel(session.sessionId);
+
+  const meta = document.createElement("span");
+  meta.className = "session-list-meta";
+  meta.textContent = formatSessionMeta(session, isSubAgent);
+
+  button.append(label, meta);
+  button.addEventListener("click", async () => {
+    await activateSession(session.sessionId);
+  });
+  return button;
+}
+
+function buildSessionListTree(session, sessions, renderedSessionIds) {
+  renderedSessionIds.add(session.sessionId);
+
+  const group = document.createElement("div");
+  group.className = "session-group";
+  group.append(createSessionListButton(session, session.kind === "SUB_AGENT"));
+
+  const childSessions = sessions.filter((candidate) => candidate.parentSessionId === session.sessionId);
+  if (childSessions.length > 0) {
+    const children = document.createElement("div");
+    children.className = "session-children";
+    childSessions.forEach((child) => {
+      children.append(buildSessionListTree(child, sessions, renderedSessionIds));
+    });
+    group.append(children);
+  }
+
+  return group;
 }
 
 function buildFeedItems() {
@@ -1285,6 +1371,10 @@ clearContextButtonEl.addEventListener("click", async () => {
     isClearingContext = false;
     renderControls();
   }
+});
+
+createSessionButtonEl.addEventListener("click", async () => {
+  await createSession();
 });
 
 filterEditorSelectEl.addEventListener("change", () => {
@@ -2229,6 +2319,83 @@ function renderComposer() {
     return;
   }
   sendButtonEl.textContent = sessionRunning ? "Queue" : "Send";
+}
+
+function getCurrentSessionSummary() {
+  return latestState?.sessions?.find((session) => session.sessionId === latestState.currentSessionId) || null;
+}
+
+function isSessionMutationLocked() {
+  return isMutatingSession || Boolean(latestState?.session?.running);
+}
+
+function resolveSessionState(session) {
+  if (session.running) {
+    return "running";
+  }
+  if (session.pendingMessageCount > 0) {
+    return "attention";
+  }
+  return "idle";
+}
+
+function formatSessionLabel(sessionId) {
+  return `Session ${sessionId.slice(0, 8)}`;
+}
+
+function formatSessionMeta(session, isSubAgent = false) {
+  const countLabel = `${session.messageCount} msg`;
+  const prefix = isSubAgent || session.kind === "SUB_AGENT" ? "Sub-agent" : "Root";
+  if (session.pendingMessageCount > 0) {
+    return `${prefix} · ${countLabel} · ${session.pendingMessageCount} queued`;
+  }
+  return `${prefix} · ${countLabel}`;
+}
+
+async function createSession() {
+  if (isSessionMutationLocked()) {
+    return;
+  }
+
+  isMutatingSession = true;
+  renderSessionList();
+
+  try {
+    const response = await requestJson("/api/sessions", {
+      method: HTTP_METHOD.POST,
+      body: JSON.stringify({}),
+    });
+    setComposerStatus("success", response.message || "Session created.", 1800);
+    await loadState();
+  } catch (error) {
+    setComposerStatus("error", error.message || "Unable to create session.");
+  } finally {
+    isMutatingSession = false;
+    renderSessionList();
+  }
+}
+
+async function activateSession(sessionId) {
+  if (isSessionMutationLocked()) {
+    return;
+  }
+
+  isMutatingSession = true;
+  renderSessionList();
+
+  try {
+    const response = await requestJson(`/api/sessions/${sessionId}/activate`, {
+      method: HTTP_METHOD.POST,
+      body: JSON.stringify({}),
+    });
+    setComposerStatus("success", response.message || "Session selected.", 1800);
+    await loadState();
+  } catch (error) {
+    setComposerStatus("error", error.message || "Unable to select session.");
+  } finally {
+    isMutatingSession = false;
+    renderSessionList();
+  }
 }
 
 function setComposerStatus(state, text, resetAfterMs = 0) {

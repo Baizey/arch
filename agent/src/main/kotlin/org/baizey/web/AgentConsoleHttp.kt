@@ -12,6 +12,7 @@ import org.baizey.runtime.ActivityFilterProfileSnapshot
 import org.baizey.runtime.McpToolFilterCatalogSnapshot
 import org.baizey.runtime.McpToolFilterProfile
 import org.baizey.runtime.McpToolFilterProfileSnapshot
+import org.baizey.runtime.SessionSummary
 import org.baizey.runtime.ToolFilterCatalogSnapshot
 import org.baizey.runtime.ToolFilterProfile
 import org.baizey.runtime.ToolFilterProfileSnapshot
@@ -73,6 +74,8 @@ internal fun actionJson(ok: Boolean, message: String? = null): JsonObject {
 }
 
 internal fun buildStateJson(
+    currentSessionId: String?,
+    sessions: List<SessionSummary>,
     session: HarnessSnapshot,
     pendingQuestions: List<PendingQuestionView>,
     pendingPermissionRequests: List<PendingPermissionRequestView>,
@@ -83,6 +86,8 @@ internal fun buildStateJson(
     mcpToolFilterCatalog: McpToolFilterCatalogSnapshot
 ): JsonObject {
     return buildJsonObject {
+        currentSessionId?.let { putString("currentSessionId", it) }
+        put("sessions", buildJsonArray { sessions.forEach { add(it.toJson()) } })
         put("session", session.toJson())
         put("pendingAskUsers", buildJsonArray {
             pendingQuestions.forEach { question ->
@@ -114,6 +119,20 @@ internal fun buildStateJson(
         put("toolFilterCatalog", toolFilterCatalog.toJson())
         put("mcpToolFilterProfiles", mcpToolFilterProfiles.toJson())
         put("mcpToolFilterCatalog", mcpToolFilterCatalog.toJson())
+    }
+}
+
+internal fun SessionSummary.toJson(): JsonObject {
+    return buildJsonObject {
+        putString("sessionId", sessionId)
+        putString("kind", kind.name)
+        parentSessionId?.let { putString("parentSessionId", it) }
+        rootSessionId?.let { putString("rootSessionId", it) }
+        putLong("updatedAtMs", updatedAtMs)
+        putLong("messageCount", messageCount.toLong())
+        putLong("pendingMessageCount", pendingMessageCount.toLong())
+        putBoolean("running", running)
+        putString("label", label)
     }
 }
 

@@ -10,16 +10,17 @@ import org.baizey.harness.tools.web.search.providers.brave.BraveWebSearchProvide
 import org.baizey.harness.tools.search.providers.duckduckgo.DuckDuckGoSearchProvider
 import org.baizey.harness.tools.search.providers.google.GoogleCustomSearchProvider
 import org.baizey.harness.tools.web.summary.CurrentModelContentSummarizer
+import org.baizey.runtime.agentic.instance.AgenticInstanceContext
 
 internal object WebTools {
-    fun create(): List<Any> {
+    fun create(agentContext: AgenticInstanceContext): List<Any> {
         val httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build()
         val webPageFetcher = HttpWebPageFetcher(httpClient)
         val searchApiHttpClient = SearchApiHttpClient(httpClient)
-        val webContentSummarizer = CurrentModelContentSummarizer()
+        val webContentSummarizer = CurrentModelContentSummarizer(agentContext)
         return listOf(
             SearchWebTool(
                 searchEngine = MultiProviderWebSearchEngine(

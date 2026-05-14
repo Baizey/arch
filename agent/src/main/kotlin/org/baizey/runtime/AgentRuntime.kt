@@ -29,6 +29,7 @@ class AgentRuntime(
     override fun chat(prompt: String): String? = agentInstance.chat(prompt)
 
     override fun resetConversation() {
+        agentInstance.clearStoredChatMemory()
         replaceAgentInstance()
         activeModelRevision = ModelSelection.currentRevision()
         activeToolFilterRevision = toolFilterRevisionProvider()

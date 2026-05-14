@@ -20,6 +20,7 @@ import java.util.*
 abstract class AgentInstance(val context: AgenticInstanceContext) {
     val isNewSession: Boolean = context.core.sessionId == null
     val sessionId: UUID = context.core.sessionId ?: UUID.randomUUID()
+    private val chatMemoryStore = SessionChatMemoryStore(context.core.sessionStateStore)
     val chatMemory: MessageWindowChatMemory = buildChatMemory()
     val resources: RuntimeResources = context.prepareRuntimeResources()
     val assistant: Assistant = buildAssistant()
@@ -32,8 +33,10 @@ abstract class AgentInstance(val context: AgenticInstanceContext) {
 
     fun builtInToolCount(): Int = resources.tools.size
 
-    fun storeChatMemory() {
-        TODO("Not yet implemented")
+    fun storeChatMemory() = Unit
+
+    fun clearStoredChatMemory() {
+        chatMemoryStore.deleteMessages(sessionId.toString())
     }
 
     private fun buildAssistant(): Assistant {
@@ -59,10 +62,11 @@ abstract class AgentInstance(val context: AgenticInstanceContext) {
     }
 
     private fun buildChatMemory(): MessageWindowChatMemory {
-        if (isNewSession) {
-            return MessageWindowChatMemory.builder().maxMessages(Int.MAX_VALUE).build()
-        }
-        TODO("Load old session state from disk.")
+        return MessageWindowChatMemory.builder()
+            .id(sessionId.toString())
+            .chatMemoryStore(chatMemoryStore)
+            .maxMessages(Int.MAX_VALUE)
+            .build()
     }
 
     companion object {
@@ -170,6 +174,8 @@ data class PolicyContext(
 
 data class CoreContext(
     val sessionId: UUID? = null,
+    val sessionStateStore: SessionStateStore = SessionStateStore(),
+    val sessionParentId: UUID? = null,
     val systemPrompt: String,
     val type: ProviderType,
     val modelName: String,
@@ -184,6 +190,8 @@ data class CoreContext(
     ): CoreContext {
         return CoreContext(
             sessionId = sessionId,
+            sessionStateStore = sessionStateStore,
+            sessionParentId = sessionParentId,
             systemPrompt = systemPrompt,
             type = type,
             modelName = modelName,

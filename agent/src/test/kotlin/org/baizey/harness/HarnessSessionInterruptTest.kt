@@ -1,21 +1,37 @@
 package org.baizey.harness
 
+import org.baizey.runtime.SessionStateStore
+import org.baizey.runtime.SessionStore
 import org.baizey.runtime.agentic.instance.SystemPrompt
 import org.baizey.runtime.agentic.instance.exceptions.AgentRunInterruptedException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class HarnessSessionInterruptTest {
+    @TempDir
+    lateinit var tempDir: Path
 
     @Test
     fun `newer message discards stale assistant response`() {
         val firstCallStarted = CountDownLatch(1)
         val releaseFirstCall = CountDownLatch(1)
-        val session = HarnessSession(FakeInteractionPort()) { _, shouldInterrupt, _, _, _, _ ->
+        val sessionStore = SessionStore(
+            controlPath = tempDir.resolve("session_store.json"),
+            stateStore = SessionStateStore(tempDir.resolve("records"))
+        )
+        val session = HarnessSession(
+            interactionPort = FakeInteractionPort(),
+            sessionStore = sessionStore,
+            sessionStateStore = SessionStateStore(tempDir.resolve("records")),
+            sessionId = sessionStore.createSessionId(),
+            sandboxServiceFactory = { null }
+        ) { _, shouldInterrupt, _, _, _, _ ->
             FakeRuntime { prompt ->
                 when (prompt) {
                     "first question" -> {
@@ -63,7 +79,17 @@ class HarnessSessionInterruptTest {
     @Test
     fun `newer message interrupts before next tool boundary`() {
         val firstCallStarted = CountDownLatch(1)
-        val session = HarnessSession(FakeInteractionPort()) { _, shouldInterrupt, _, _, _, _ ->
+        val sessionStore = SessionStore(
+            controlPath = tempDir.resolve("session_store.json"),
+            stateStore = SessionStateStore(tempDir.resolve("records"))
+        )
+        val session = HarnessSession(
+            interactionPort = FakeInteractionPort(),
+            sessionStore = sessionStore,
+            sessionStateStore = SessionStateStore(tempDir.resolve("records")),
+            sessionId = sessionStore.createSessionId(),
+            sandboxServiceFactory = { null }
+        ) { _, shouldInterrupt, _, _, _, _ ->
             FakeRuntime { prompt ->
                 when (prompt) {
                     "first question" -> {

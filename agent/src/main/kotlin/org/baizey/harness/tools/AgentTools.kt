@@ -20,7 +20,7 @@ object AgentTools {
                     onPolicyChanged = agentContext.tools.onPathPolicyChanged
                 ).filterBuiltInTools(agentContext.tools.profile)
             )
-            addAll(WebTools.create().filterBuiltInTools(agentContext.tools.profile))
+            addAll(WebTools.create(agentContext).filterBuiltInTools(agentContext.tools.profile))
             addAll(GitTools.create(agentContext.policies.git).filterBuiltInTools(agentContext.tools.profile))
             agentContext.tools.sandbox
                 ?.let(::ShellTool)

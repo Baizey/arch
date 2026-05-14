@@ -18,6 +18,10 @@ object SystemPath {
     val activityFilterProfilesFile = configDir.resolve("activity_filter_profiles.json")
     val toolFilterProfilesFile = configDir.resolve("tool_filter_profiles.json")
     val mcpToolFilterProfilesFile = configDir.resolve("mcp_tool_filter_profiles.json")
+    private val sessionsDir = disallowBotDir.resolve("sessions")
+    private val sessionControlDir = sessionsDir.resolve("control")
+    val sessionControlFile = sessionControlDir.resolve("session_store.json")
+    val sessionRecordsDir = sessionsDir.resolve("records")
 
     private val logDir = disallowBotDir.resolve("logs")
     val errorLogFile = logDir.resolve("errors.log")

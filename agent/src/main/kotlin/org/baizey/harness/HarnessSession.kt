@@ -16,6 +16,10 @@ import org.baizey.runtime.AgentRuntime
 import org.baizey.runtime.AppConfig
 import org.baizey.runtime.McpToolFilterProfile
 import org.baizey.runtime.McpToolFilterProfileStore
+import org.baizey.runtime.SessionKind
+import org.baizey.runtime.SessionState
+import org.baizey.runtime.SessionStateStore
+import org.baizey.runtime.SessionStore
 import org.baizey.runtime.ToolFilterProfile
 import org.baizey.runtime.ToolFilterProfileStore
 import org.baizey.runtime.agentic.instance.AgenticInstanceContext
@@ -104,29 +108,60 @@ interface HarnessRuntime {
     fun refreshIfNeeded(): String?
 }
 
-class HarnessSession(
+class HarnessSession private constructor(
     interactionPort: HarnessInteractionPort,
-    runtimeFactory: (AgenticInstanceContext, () -> Boolean, () -> List<ChatModelListener>, () -> Int, () -> ToolFilterProfile?, () -> McpToolFilterProfile?) -> HarnessRuntime =
-        { agentContext, shouldInterruptBeforeToolExecution, listenersProvider, toolFilterRevisionProvider, toolFilterProfileProvider, mcpToolFilterProfileProvider ->
-            AgentRuntime(
-                agentContext = agentContext,
-                shouldInterruptBeforeToolExecution = shouldInterruptBeforeToolExecution,
-                listenersProvider = listenersProvider,
-                toolFilterRevisionProvider = toolFilterRevisionProvider,
-                toolFilterProfileProvider = toolFilterProfileProvider,
-                mcpToolFilterProfileProvider = mcpToolFilterProfileProvider
-            )
-        }
+    private val dependencies: SessionDependencies,
+    private val sandboxServiceFactory: (UserPathPolicyLogic) -> DockerSandboxService?,
+    runtimeFactory: (AgenticInstanceContext, () -> Boolean, () -> List<ChatModelListener>, () -> Int, () -> ToolFilterProfile?, () -> McpToolFilterProfile?) -> HarnessRuntime
 ) {
+    constructor(interactionPort: HarnessInteractionPort) : this(
+        interactionPort = interactionPort,
+        dependencies = defaultDependencies(),
+        sandboxServiceFactory = defaultSandboxServiceFactory(),
+        runtimeFactory = defaultRuntimeFactory()
+    )
+
+    constructor(
+        interactionPort: HarnessInteractionPort,
+        runtimeFactory: (AgenticInstanceContext, () -> Boolean, () -> List<ChatModelListener>, () -> Int, () -> ToolFilterProfile?, () -> McpToolFilterProfile?) -> HarnessRuntime
+    ) : this(
+        interactionPort = interactionPort,
+        dependencies = defaultDependencies(),
+        sandboxServiceFactory = defaultSandboxServiceFactory(),
+        runtimeFactory = runtimeFactory
+    )
+
+    internal constructor(
+        interactionPort: HarnessInteractionPort,
+        sessionStore: SessionStore,
+        sessionStateStore: SessionStateStore,
+        sessionId: UUID,
+        sandboxServiceFactory: (UserPathPolicyLogic) -> DockerSandboxService?,
+        runtimeFactory: (AgenticInstanceContext, () -> Boolean, () -> List<ChatModelListener>, () -> Int, () -> ToolFilterProfile?, () -> McpToolFilterProfile?) -> HarnessRuntime
+    ) : this(
+        interactionPort = interactionPort,
+        dependencies = SessionDependencies(sessionStore, sessionStateStore, sessionId),
+        sandboxServiceFactory = sandboxServiceFactory,
+        runtimeFactory = runtimeFactory
+    )
+
+    private val restoredState = dependencies.sessionStateStore.load(dependencies.sessionId)?.also { restored ->
+        restored.snapshot.selectedModelId
+            .takeIf { it.isNotBlank() }
+            ?.let(ModelSelection::select)
+    }
+    private val sessionKind = restoredState?.kind ?: SessionKind.ROOT
+    private val parentSessionId = restoredState?.parentSessionId
+    private val rootSessionId = restoredState?.rootSessionId
     private val pathPolicyLogic = UserPathPolicyLogic(interactionPort)
     private val gitPolicyLogic = UserGitPolicyLogic(interactionPort)
-    private val sandboxService = DockerSandboxService(
-        config = AppConfig.sandbox,
-        pathPolicyLogic = pathPolicyLogic
-    ).also { it.start() }
+    private val sandboxService = sandboxServiceFactory(pathPolicyLogic)
     private val agentContext = AgenticInstanceContext(
         core = CoreContext(
-            systemPrompt = "",
+            sessionId = dependencies.sessionId,
+            sessionStateStore = dependencies.sessionStateStore,
+            sessionParentId = null,
+            systemPrompt = restoredState?.systemPrompt.orEmpty(),
             type = ProviderType.OLLAMA,
             modelName = "unselected",
             listeners = emptyList(),
@@ -181,29 +216,28 @@ class HarnessSession(
     @Volatile
     private var mcpToolFilterProfile: McpToolFilterProfile? = null
 
+    @Volatile
+    private var persistedSystemPrompt: String? = restoredState?.systemPrompt
+
     init {
-        recordActivity(
-            type = HarnessActivityType.SYSTEM,
-            title = "Session ready",
-            detail = "Model ${runtime.currentModel} with ${runtime.builtInToolCount} built-in tools."
-        )
+        if (restoredState != null) {
+            restoreState(restoredState)
+        } else {
+            recordActivity(
+                type = HarnessActivityType.SYSTEM,
+                title = "Session ready",
+                detail = "Model ${runtime.currentModel} with ${runtime.builtInToolCount} built-in tools."
+            )
+        }
     }
 
     fun snapshot(): HarnessSnapshot {
         synchronized(lock) {
-            val modelCatalogSnapshot = loadModelCatalogSnapshot()
-            return HarnessSnapshot(
-                running = running,
-                selectedModelId = modelCatalogSnapshot.selectedModelId,
-                modelLabel = runtime.currentModel,
-                supportedModels = modelCatalogSnapshot.supportedModels,
-                activeContextSize = activeContextSize,
-                messages = messages.toList(),
-                activity = activity.toList(),
-                pendingMessages = pendingMessages.toList()
-            )
+            return buildSnapshotLocked()
         }
     }
+
+    fun sessionId(): UUID = dependencies.sessionId
 
     fun submitUserMessage(text: String): SubmitMessageResult {
         val trimmed = text.trim()
@@ -224,6 +258,7 @@ class HarnessSession(
                         )
                     )
                     interruptRequested = true
+                    persistStateLocked()
                     return SubmitMessageResult(
                         ok = true,
                         message = "Message appended to queued interrupting message."
@@ -237,6 +272,7 @@ class HarnessSession(
                     )
                 )
                 interruptRequested = true
+                persistStateLocked()
                 return SubmitMessageResult(
                     ok = true,
                     message = "Message queued and interrupt requested."
@@ -246,6 +282,7 @@ class HarnessSession(
             stopAtNextBreakRequested = false
             interruptRequested = false
             messages += HarnessChatEntry(nextId(), "user", trimmed, now())
+            persistStateLocked()
         }
 
         Thread.ofVirtual().name("harness-session").start {
@@ -266,6 +303,7 @@ class HarnessSession(
                     if (pendingMessages.isEmpty()) {
                         interruptRequested = false
                     }
+                    persistStateLocked()
                     return true
                 }
             }
@@ -277,6 +315,7 @@ class HarnessSession(
         synchronized(lock) {
             pendingMessages.clear()
             interruptRequested = false
+            persistStateLocked()
             if (running) {
                 requestStopAtNextBreak(
                     title = "Context clear requested",
@@ -295,6 +334,7 @@ class HarnessSession(
         synchronized(lock) {
             toolFilterProfile = profile
             toolFilterRevision++
+            persistStateLocked()
         }
         recordActivity(
             type = HarnessActivityType.CONTROL,
@@ -307,6 +347,7 @@ class HarnessSession(
         synchronized(lock) {
             mcpToolFilterProfile = profile
             toolFilterRevision++
+            persistStateLocked()
         }
         recordActivity(
             type = HarnessActivityType.CONTROL,
@@ -353,7 +394,7 @@ class HarnessSession(
     }
 
     fun close() {
-        sandboxService.close()
+        sandboxService?.close()
     }
 
     private fun runConversation(initialPrompt: String) {
@@ -373,6 +414,7 @@ class HarnessSession(
             synchronized(lock) {
                 running = false
                 stopAtNextBreakRequested = false
+                persistStateLocked()
             }
         }
     }
@@ -415,6 +457,7 @@ class HarnessSession(
             if (agentResponse != null && agentResponse != "null" && agentResponse != "") {
                 synchronized(lock) {
                     messages += HarnessChatEntry(nextId(), SystemPrompt.AGENT_NAME, agentResponse, now())
+                    persistStateLocked()
                 }
                 return
             }
@@ -449,9 +492,11 @@ If you have a final result for the user provide it, or ask any questions you nee
             val pendingMessage = if (pendingMessages.isEmpty()) null else pendingMessages.removeFirst()
             if (pendingMessage == null) {
                 running = false
+                persistStateLocked()
                 return null
             }
             messages += HarnessChatEntry(nextId(), "user", pendingMessage.text, now())
+            persistStateLocked()
             return pendingMessage.text
         }
     }
@@ -469,10 +514,12 @@ If you have a final result for the user provide it, or ask any questions you nee
             val pendingMessage = if (pendingMessages.isEmpty()) null else pendingMessages.removeFirst()
             if (pendingMessage == null) {
                 interruptRequested = false
+                persistStateLocked()
                 return null
             }
             interruptRequested = false
             messages += HarnessChatEntry(nextId(), "user", pendingMessage.text, now())
+            persistStateLocked()
             return pendingMessage.text
         }
     }
@@ -488,6 +535,8 @@ If you have a final result for the user provide it, or ask any questions you nee
             messages.clear()
             activity.clear()
             pendingMessages.clear()
+            persistedSystemPrompt = null
+            persistStateLocked()
         }
         recordActivity(
             type = HarnessActivityType.SYSTEM,
@@ -511,6 +560,7 @@ If you have a final result for the user provide it, or ask any questions you nee
                 timestampMs = now(),
                 correlationId = correlationId
             )
+            persistStateLocked()
         }
     }
 
@@ -532,6 +582,7 @@ If you have a final result for the user provide it, or ask any questions you nee
         }
         synchronized(lock) {
             activeContextSize = nextActiveContextSize
+            persistStateLocked()
         }
     }
 
@@ -578,6 +629,71 @@ If you have a final result for the user provide it, or ask any questions you nee
         }
     }
 
+    private fun restoreState(state: SessionState) {
+        synchronized(lock) {
+            running = false
+            stopAtNextBreakRequested = false
+            clearContextRequested = false
+            interruptRequested = false
+            activeContextSize = state.snapshot.activeContextSize
+            messages.clear()
+            messages += state.snapshot.messages
+            activity.clear()
+            activity += state.snapshot.activity
+            pendingMessages.clear()
+            pendingMessages.addAll(state.snapshot.pendingMessages)
+            val maxId = maxOf(
+                messages.maxOfOrNull { it.id } ?: 0L,
+                activity.maxOfOrNull { it.id } ?: 0L
+            )
+            ids.set(maxId)
+            if (state.snapshot.running) {
+                activity += HarnessActivityEntry(
+                    id = nextId(),
+                    type = HarnessActivityType.CONTROL,
+                    title = "Previous run interrupted",
+                    detail = "The process stopped while a run was in progress. Continue from the restored session state.",
+                    timestampMs = now()
+                )
+            }
+            persistStateLocked()
+        }
+    }
+
+    private fun persistState() {
+        synchronized(lock) {
+            persistStateLocked()
+        }
+    }
+
+    private fun persistStateLocked() {
+        dependencies.sessionStateStore.save(
+            SessionState(
+                sessionId = dependencies.sessionId.toString(),
+                kind = sessionKind,
+                parentSessionId = parentSessionId,
+                rootSessionId = rootSessionId,
+                updatedAtMs = now(),
+                systemPrompt = persistedSystemPrompt,
+                snapshot = buildSnapshotLocked()
+            )
+        )
+    }
+
+    private fun buildSnapshotLocked(): HarnessSnapshot {
+        val modelCatalogSnapshot = loadModelCatalogSnapshot()
+        return HarnessSnapshot(
+            running = running,
+            selectedModelId = modelCatalogSnapshot.selectedModelId,
+            modelLabel = runtime.currentModel,
+            supportedModels = modelCatalogSnapshot.supportedModels,
+            activeContextSize = activeContextSize,
+            messages = messages.toList(),
+            activity = activity.toList(),
+            pendingMessages = pendingMessages.toList()
+        )
+    }
+
     private fun buildListeners(): List<ChatModelListener> = listOf(HarnessModelListener())
 
     private fun nextId(): Long = ids.incrementAndGet()
@@ -606,6 +722,8 @@ If you have a final result for the user provide it, or ask any questions you nee
             if (lastMessage.type() == ChatMessageType.SYSTEM && !systemSeen) {
                 val message = lastMessage as SystemMessage
                 systemSeen = true
+                persistedSystemPrompt = message.text()
+                persistState()
                 recordActivity(
                     type = HarnessActivityType.SYSTEM,
                     title = "System prompt loaded",
@@ -655,9 +773,48 @@ If you have a final result for the user provide it, or ask any questions you nee
             )
         }
     }
+
+    companion object {
+        private fun defaultDependencies(): SessionDependencies {
+            val sessionStateStore = SessionStateStore()
+            val sessionStore = SessionStore(stateStore = sessionStateStore)
+            val sessionId = sessionStore.selectedSessionId() ?: sessionStore.createSessionId()
+            return SessionDependencies(
+                sessionStore = sessionStore,
+                sessionStateStore = sessionStateStore,
+                sessionId = sessionId
+            )
+        }
+
+        private fun defaultSandboxServiceFactory(): (UserPathPolicyLogic) -> DockerSandboxService? = { pathPolicyLogic ->
+            DockerSandboxService(
+                config = AppConfig.sandbox,
+                pathPolicyLogic = pathPolicyLogic
+            ).also { it.start() }
+        }
+
+        private fun defaultRuntimeFactory():
+            (AgenticInstanceContext, () -> Boolean, () -> List<ChatModelListener>, () -> Int, () -> ToolFilterProfile?, () -> McpToolFilterProfile?) -> HarnessRuntime =
+            { agentContext, shouldInterruptBeforeToolExecution, listenersProvider, toolFilterRevisionProvider, toolFilterProfileProvider, mcpToolFilterProfileProvider ->
+                AgentRuntime(
+                    agentContext = agentContext,
+                    shouldInterruptBeforeToolExecution = shouldInterruptBeforeToolExecution,
+                    listenersProvider = listenersProvider,
+                    toolFilterRevisionProvider = toolFilterRevisionProvider,
+                    toolFilterProfileProvider = toolFilterProfileProvider,
+                    mcpToolFilterProfileProvider = mcpToolFilterProfileProvider
+                )
+            }
+    }
 }
 
 private data class HarnessModelCatalogSnapshot(
     val selectedModelId: String,
     val supportedModels: List<HarnessSupportedModel>
+)
+
+private data class SessionDependencies(
+    val sessionStore: SessionStore,
+    val sessionStateStore: SessionStateStore,
+    val sessionId: UUID
 )

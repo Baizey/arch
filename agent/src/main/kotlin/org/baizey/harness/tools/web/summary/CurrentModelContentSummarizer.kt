@@ -18,7 +18,9 @@ import org.baizey.runtime.agentic.instance.PolicyContext
 import org.baizey.runtime.agentic.instance.ProviderType
 import org.baizey.runtime.agentic.instance.ToolContext
 
-internal class CurrentModelContentSummarizer : ContentSummarizer {
+internal class CurrentModelContentSummarizer(
+    private val parentContext: AgenticInstanceContext
+) : ContentSummarizer {
     private val interactionPort = object : HarnessInteractionPort {
         override fun askUserQuestion(question: String, options: List<String>) =
             error("CurrentModelContentSummarizer does not ask user questions")
@@ -117,22 +119,33 @@ internal class CurrentModelContentSummarizer : ContentSummarizer {
         while (response.isNullOrBlank() || response == "null") {
             response = agent.chat("Please provide your response, or continue to ponder")
         }
+        parentContext.core.sessionStateStore.persistSnapshotFromChatMemory(
+            sessionId = agent.sessionId,
+            selectedModelId = ModelSelection.BEST_SMALL,
+            modelLabel = agent.displayName()
+        )
         return response
     }
 
     private fun getAgent(): AgentInstance {
-        return AgentInstance.create(
-            AgenticInstanceContext(
-                core = CoreContext(
-                    modelName = ModelSelection.BEST_SMALL,
-                    type = ProviderType.OLLAMA,
-                    systemPrompt =
-                        """You summarize web tool results for another coding agent.
+        val systemPrompt =
+            """You summarize web tool results for another coding agent.
 Return only the useful answer, not chain of thought.
 Stay grounded in the provided data.
 Prefer concise factual summaries.
 If the requested goal cannot be satisfied from the provided data, say what is missing.
-Include relevant URLs when they materially help the next step.""",
+Include relevant URLs when they materially help the next step."""
+        val parentSessionId = parentContext.core.sessionId
+        val sessionId = parentSessionId?.let { parentContext.core.sessionStateStore.createSubAgentSession(it, systemPrompt) }
+        return AgentInstance.create(
+            AgenticInstanceContext(
+                core = CoreContext(
+                    sessionId = sessionId,
+                    sessionStateStore = parentContext.core.sessionStateStore,
+                    sessionParentId = parentSessionId,
+                    modelName = ModelSelection.BEST_SMALL,
+                    type = ProviderType.OLLAMA,
+                    systemPrompt = systemPrompt,
                     listeners = emptyList(),
                     userInteraction = interactionPort
                 ),

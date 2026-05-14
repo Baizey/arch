@@ -5,7 +5,6 @@ import com.sun.net.httpserver.HttpServer
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
-import org.baizey.harness.HarnessSession
 import org.baizey.runtime.ActivityFilterCategory
 import org.baizey.runtime.ActivityFilterMode
 import org.baizey.runtime.ActivityFilterProfileStore
@@ -20,7 +19,7 @@ private const val SHUTDOWN_WAIT_MS = 5_000L
 
 internal class AgentConsoleServer(
     private val server: HttpServer,
-    private val session: HarnessSession,
+    private val sessionManager: ActiveHarnessSessionManager,
     private val interactionPort: AgentConsoleInteractionPort
 ) {
     private val shutdownRequested = AtomicBoolean(false)
@@ -50,7 +49,9 @@ internal class AgentConsoleServer(
         get("/api/state") { exchange, _ ->
             exchange.respondJson(
                 buildStateJson(
-                    session = session.snapshot(),
+                    currentSessionId = sessionManager.snapshot().activeSessionId,
+                    sessions = sessionManager.snapshot().sessions,
+                    session = sessionManager.current().snapshot(),
                     pendingQuestions = interactionPort.pendingQuestions(),
                     pendingPermissionRequests = interactionPort.pendingPermissionRequests(),
                     filterProfiles = filterProfiles.snapshot(),
@@ -71,7 +72,7 @@ internal class AgentConsoleServer(
         }
         post("/api/message") { exchange, _ ->
             val body = exchange.readJsonObject()
-            val result = session.submitUserMessage(body.string("text").orEmpty())
+            val result = sessionManager.current().submitUserMessage(body.string("text").orEmpty())
             exchange.respondJson(
                 actionJson(
                     ok = result.ok,
@@ -82,14 +83,14 @@ internal class AgentConsoleServer(
         post("/api/message/{id}/cancel") { exchange, pathParams ->
             exchange.respondJson(
                 actionJson(
-                    ok = session.cancelPendingMessage(pathParams.getValue("id")),
+                    ok = sessionManager.current().cancelPendingMessage(pathParams.getValue("id")),
                     message = null
                 )
             )
         }
         post("/api/model") { exchange, _ ->
             val body = exchange.readJsonObject()
-            val message = session.setModel(body.string("model").orEmpty())
+            val message = sessionManager.current().setModel(body.string("model").orEmpty())
             exchange.respondJson(
                 actionJson(
                     ok = true,
@@ -101,7 +102,31 @@ internal class AgentConsoleServer(
             exchange.respondJson(
                 actionJson(
                     ok = true,
-                    message = session.clearContext()
+                    message = sessionManager.current().clearContext()
+                )
+            )
+        }
+        post("/api/sessions") { exchange, _ ->
+            val ok = sessionManager.createSession()
+            if (ok) {
+                applyActiveProfiles()
+            }
+            exchange.respondJson(
+                actionJson(
+                    ok = ok,
+                    message = if (ok) "Session created." else "Unable to create a new session while a run is active."
+                )
+            )
+        }
+        post("/api/sessions/{id}/activate") { exchange, pathParams ->
+            val ok = sessionManager.selectSession(pathParams.getValue("id"))
+            if (ok) {
+                applyActiveProfiles()
+            }
+            exchange.respondJson(
+                actionJson(
+                    ok = ok,
+                    message = if (ok) "Session selected." else "Unable to select that session."
                 )
             )
         }
@@ -167,7 +192,7 @@ internal class AgentConsoleServer(
             val body = exchange.readJsonObject()
             val ok = toolFilterProfiles.selectProfile(body.string("profileId").orEmpty())
             if (ok) {
-                session.setToolFilterProfile(toolFilterProfiles.activeProfile())
+                sessionManager.current().setToolFilterProfile(toolFilterProfiles.activeProfile())
             }
             exchange.respondJson(
                 actionJson(
@@ -209,7 +234,7 @@ internal class AgentConsoleServer(
                 rules = rules
             )
             if (updated != null && toolFilterProfiles.snapshot().activeProfileId == updated.id) {
-                session.setToolFilterProfile(toolFilterProfiles.activeProfile())
+                sessionManager.current().setToolFilterProfile(toolFilterProfiles.activeProfile())
             }
             exchange.respondJson(
                 actionJson(
@@ -221,7 +246,7 @@ internal class AgentConsoleServer(
         post("/api/tool-filter-profiles/{id}/delete") { exchange, pathParams ->
             val ok = toolFilterProfiles.deleteProfile(pathParams.getValue("id"))
             if (ok) {
-                session.setToolFilterProfile(toolFilterProfiles.activeProfile())
+                sessionManager.current().setToolFilterProfile(toolFilterProfiles.activeProfile())
             }
             exchange.respondJson(
                 actionJson(
@@ -234,7 +259,7 @@ internal class AgentConsoleServer(
             val body = exchange.readJsonObject()
             val ok = mcpToolFilterProfiles.selectProfile(body.string("profileId").orEmpty())
             if (ok) {
-                session.setMcpToolFilterProfile(mcpToolFilterProfiles.activeProfile())
+                sessionManager.current().setMcpToolFilterProfile(mcpToolFilterProfiles.activeProfile())
             }
             exchange.respondJson(
                 actionJson(
@@ -276,7 +301,7 @@ internal class AgentConsoleServer(
                 rules = rules
             )
             if (updated != null && mcpToolFilterProfiles.snapshot().activeProfileId == updated.id) {
-                session.setMcpToolFilterProfile(mcpToolFilterProfiles.activeProfile())
+                sessionManager.current().setMcpToolFilterProfile(mcpToolFilterProfiles.activeProfile())
             }
             exchange.respondJson(
                 actionJson(
@@ -288,7 +313,7 @@ internal class AgentConsoleServer(
         post("/api/mcp-tool-filter-profiles/{id}/delete") { exchange, pathParams ->
             val ok = mcpToolFilterProfiles.deleteProfile(pathParams.getValue("id"))
             if (ok) {
-                session.setMcpToolFilterProfile(mcpToolFilterProfiles.activeProfile())
+                sessionManager.current().setMcpToolFilterProfile(mcpToolFilterProfiles.activeProfile())
             }
             exchange.respondJson(
                 actionJson(
@@ -341,8 +366,7 @@ internal class AgentConsoleServer(
     }
 
     init {
-        session.setToolFilterProfile(toolFilterProfiles.activeProfile())
-        session.setMcpToolFilterProfile(mcpToolFilterProfiles.activeProfile())
+        applyActiveProfiles()
     }
 
     fun handle(exchange: HttpExchange) {
@@ -364,10 +388,10 @@ internal class AgentConsoleServer(
     }
 
     private fun requestShutdown(): String {
-        val running = session.snapshot().running
+        val running = sessionManager.current().snapshot().running
         val isFirstRequest = shutdownRequested.compareAndSet(false, true)
         if (running) {
-            session.requestStopForShutdown()
+            sessionManager.current().requestStopForShutdown()
         }
         if (isFirstRequest) {
             scheduleShutdown()
@@ -383,11 +407,16 @@ internal class AgentConsoleServer(
         Thread.ofPlatform().name("web-harness-shutdown").start {
             Thread.sleep(100)
             val deadline = System.currentTimeMillis() + SHUTDOWN_WAIT_MS
-            while (session.snapshot().running && System.currentTimeMillis() < deadline) {
+            while (sessionManager.current().snapshot().running && System.currentTimeMillis() < deadline) {
                 Thread.sleep(100)
             }
             server.stop(1)
             exitProcess(0)
         }
+    }
+
+    private fun applyActiveProfiles() {
+        sessionManager.current().setToolFilterProfile(toolFilterProfiles.activeProfile())
+        sessionManager.current().setMcpToolFilterProfile(mcpToolFilterProfiles.activeProfile())
     }
 }
