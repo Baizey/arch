@@ -72,8 +72,9 @@ data class AppConfigInstance(
                 ),
                 sandbox = SandboxConfig(
                     dockerCommand = values.optionalString("AGENT_SANDBOX_DOCKER_COMMAND") ?: "docker",
-                    image = values.optionalString("AGENT_SANDBOX_IMAGE") ?: "arch-agentsh:latest",
-                    workspaceHostPath = values.optionalPath("AGENT_SANDBOX_WORKSPACE_HOST_PATH")
+                    image = values.optionalString("AGENT_SANDBOX_IMAGE") ?: "arch-sandbox:latest",
+                    workingDirectoryHostPath = values.optionalPath("AGENT_SANDBOX_WORKING_DIRECTORY_HOST_PATH")
+                        ?: values.optionalPath("AGENT_SANDBOX_WORKSPACE_HOST_PATH")
                         ?: Path(System.getProperty("user.dir")).toAbsolutePath().normalize(),
                     backingContainerPath = values.optionalString("AGENT_SANDBOX_BACKING_CONTAINER_PATH") ?: "/arch/backing",
                     workspaceContainerPath = values.optionalString("AGENT_SANDBOX_WORKSPACE_CONTAINER_PATH") ?: "/arch/workspace",
@@ -125,7 +126,7 @@ data class WebSearchConfig(
 data class SandboxConfig(
     val dockerCommand: String,
     val image: String,
-    val workspaceHostPath: Path,
+    val workingDirectoryHostPath: Path,
     val backingContainerPath: String,
     val workspaceContainerPath: String,
     val containerNamePrefix: String,

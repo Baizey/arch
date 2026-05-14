@@ -58,40 +58,7 @@ class AppConfigTest {
         assertNull(config.webSearch.brave.apiKey)
         assertNull(config.webSearch.google.apiKey)
         assertNull(config.webSearch.google.searchEngineId)
-        assertEquals("arch-agentsh:latest", config.sandbox.image)
-    }
-
-    @Test
-    fun `config loads sandbox settings from dotenv`(@TempDir tempDir: Path) {
-        tempDir.resolve(".env").writeText(
-            """
-            AGENT_CONSOLE_HOST=127.0.0.1
-            AGENT_CONSOLE_PORT=8420
-            OLLAMA_BASE_URL=http://localhost:11434
-            AGENT_SANDBOX_IMAGE=arch-agentsh:test
-            AGENT_SANDBOX_DOCKER_COMMAND=docker.exe
-            AGENT_SANDBOX_API_KEY=test-sandbox-key
-            AGENT_SANDBOX_HOST_ROOT=C:\Users
-            AGENT_SANDBOX_CONTAINER_HOST_ROOT=/host
-            AGENT_SANDBOX_STATE_VOLUME_PREFIX=arch-test
-            AGENT_SANDBOX_PORT_START=19000
-            AGENT_SANDBOX_PRIVILEGED=false
-            """.trimIndent()
-        )
-
-        val config = AppConfigInstance.load(tempDir)
-
-        assertEquals("arch-agentsh:test", config.sandbox.image)
-        assertEquals("docker.exe", config.sandbox.dockerCommand)
-        assertEquals("test-sandbox-key", config.sandbox.apiKey)
-        assertEquals(Path.of("C:\\Users"), config.sandbox.hostRoot)
-        assertEquals("/host", config.sandbox.containerHostRoot)
-        assertEquals(config.storage.homeDirectory.resolve("system/sandbox/policies"), config.sandbox.policiesDirectory)
-        assertEquals(config.storage.homeDirectory.resolve("system/sandbox/keys"), config.sandbox.keysDirectory)
-        assertEquals(config.storage.homeDirectory.resolve("system/logs/agentsh"), config.sandbox.logsDirectory)
-        assertEquals("arch-test", config.sandbox.stateVolumePrefix)
-        assertEquals(19000, config.sandbox.portStart)
-        assertEquals(false, config.sandbox.privileged)
+        assertEquals("arch-sandbox:latest", config.sandbox.image)
     }
 
     @Test
@@ -113,26 +80,6 @@ class AppConfigTest {
             "AgentSH sandboxing is always enabled. Remove AGENT_SANDBOX_ENABLED and configure AGENT_SANDBOX_* settings instead.",
             exception.message
         )
-    }
-
-    @Test
-    fun `arch home is the system root when customized`(@TempDir tempDir: Path) {
-        val archHome = tempDir.resolve("custom-arch-root")
-        tempDir.resolve(".env").writeText(
-            """
-            AGENT_CONSOLE_HOST=127.0.0.1
-            AGENT_CONSOLE_PORT=8420
-            OLLAMA_BASE_URL=http://localhost:11434
-            ARCH_HOME=$archHome
-            """.trimIndent()
-        )
-
-        val config = AppConfigInstance.load(tempDir)
-
-        assertEquals(archHome, config.storage.homeDirectory)
-        assertEquals(archHome.resolve("system/sandbox/policies"), config.sandbox.policiesDirectory)
-        assertEquals(archHome.resolve("system/sandbox/keys"), config.sandbox.keysDirectory)
-        assertEquals(archHome.resolve("system/logs/agentsh"), config.sandbox.logsDirectory)
     }
 
     @Test

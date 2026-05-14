@@ -8,11 +8,24 @@ import java.util.concurrent.Executors
 
 fun main() {
     val interactionPort = AgentConsoleInteractionPort()
-    val session = HarnessSession(interactionPort)
     val server = HttpServer.create(InetSocketAddress(AppConfig.console.host, AppConfig.console.port), 0)
-    val app = AgentConsoleServer(server, session, interactionPort)
-    server.executor = Executors.newCachedThreadPool()
-    server.createContext("/") { exchange -> app.handle(exchange) }
-    server.start()
-    println("Agent console running at http://${AppConfig.console.host}:${AppConfig.console.port}")
+    var session: HarnessSession? = null
+    try {
+        session = HarnessSession(interactionPort)
+        val app = AgentConsoleServer(server, session, interactionPort)
+        server.executor = Executors.newCachedThreadPool()
+        server.createContext("/") { exchange -> app.handle(exchange) }
+        Runtime.getRuntime().addShutdownHook(
+            Thread {
+                runCatching { server.stop(0) }
+                runCatching { session.close() }
+            }
+        )
+        server.start()
+        println("Agent console running at http://${AppConfig.console.host}:${AppConfig.console.port}")
+    } catch (exception: Exception) {
+        runCatching { server.stop(0) }
+        runCatching { session?.close() }
+        throw exception
+    }
 }

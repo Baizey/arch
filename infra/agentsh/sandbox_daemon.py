@@ -13,6 +13,7 @@ from pathlib import Path
 import pyfuse3
 import trio
 from pyfuse3 import EntryAttributes, FileInfo, FUSEError, ReaddirToken, RequestContext, SetattrFields
+from sandbox_policy import evaluate_policy as evaluate_policy_against_snapshot
 
 WORKSPACE_PATH = Path(os.environ.get("ARCH_WORKSPACE_ROOT", "/arch/workspace"))
 BACKING_PATH = Path(os.environ.get("ARCH_BACKING_ROOT", "/arch/backing"))
@@ -57,76 +58,36 @@ def drain_blocked_operations():
     with BLOCKED_LOCK:
         items = list(BLOCKED_OPERATIONS)
         BLOCKED_OPERATIONS.clear()
-        return [f"{item['action']} {item['path']} ({item['reason']})" for item in items]
+        unique_items = []
+        seen = set()
+        for item in items:
+            rendered = f"{item['action']} {item['path']} ({item['reason']})"
+            if rendered in seen:
+                continue
+            seen.add(rendered)
+            unique_items.append(rendered)
+        return unique_items
 
 
-def normalize_policy_path(raw_path: str) -> str:
-    return os.path.normpath(str(raw_path))
-
-
-def action_to_access_types(action: str):
-    if action == "read":
-        return ["READ"]
-    if action == "metadata":
-        return ["READ", "WRITE", "EDIT", "DELETE", "EXECUTE"]
-    if action == "create":
-        return ["WRITE"]
-    if action == "edit":
-        return ["EDIT", "WRITE"]
-    if action == "delete":
-        return ["DELETE"]
-    if action == "execute":
-        return ["EXECUTE", "READ"]
-    return ["READ"]
-
-
-def is_path_within_policy_scope(path: str, pattern: str) -> bool:
-    target = Path(path)
-    scope = Path(pattern)
-    return target == scope or scope in target.parents
+def append_blocked_summary(stderr: str, blocked_operations):
+    if not blocked_operations:
+        return stderr
+    summary_lines = ["Sandbox policy blocked filesystem access:"] + [f"- {item}" for item in blocked_operations]
+    summary = "\n".join(summary_lines)
+    if not stderr:
+        return summary
+    if summary in stderr:
+        return stderr
+    return f"{stderr.rstrip()}\n{summary}\n"
 
 
 def evaluate_policy(path: str, action: str):
-    access_types = action_to_access_types(action)
     with POLICY_LOCK:
-        denied_prefixes = list(ACTIVE_POLICY["deniedPathPrefixes"])
-        policies = list(ACTIVE_POLICY["policies"])
-
-    for prefix in denied_prefixes:
-        normalized_prefix = normalize_policy_path(prefix)
-        if is_path_within_policy_scope(path, normalized_prefix):
-            return False, f"denied-prefix:{normalized_prefix}"
-
-    candidates = []
-    for policy in policies:
-        try:
-            pattern = normalize_policy_path(policy["pattern"])
-        except Exception:
-            continue
-        policy_access_types = set(policy.get("accessTypes", []))
-        if not any(access_type in policy_access_types for access_type in access_types):
-            continue
-        if is_path_within_policy_scope(path, pattern):
-            candidates.append((len(pattern), policy, pattern))
-
-    if not candidates:
-        if action in ("read", "metadata"):
-            normalized_path = normalize_policy_path(path)
-            for policy in policies:
-                if not policy.get("isAllowed", False):
-                    continue
-                try:
-                    pattern = normalize_policy_path(policy["pattern"])
-                except Exception:
-                    continue
-                if is_path_within_policy_scope(pattern, normalized_path):
-                    return True, f"traversal:{pattern}"
-        return False, "unknown"
-
-    _, policy, pattern = max(candidates, key=lambda item: item[0])
-    if policy.get("isAllowed", False):
-        return True, f"allowed:{pattern}"
-    return False, f"denied:{pattern}"
+        snapshot = {
+            "policies": list(ACTIVE_POLICY["policies"]),
+            "deniedPathPrefixes": list(ACTIVE_POLICY["deniedPathPrefixes"]),
+        }
+    return evaluate_policy_against_snapshot(path, action, snapshot)
 
 
 def ensure_allowed_path(path: Path, action: str) -> None:
@@ -425,6 +386,23 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def send_exec_result(self, exit_code, stdout="", stderr="", blocked_operations=None):
+        blocked_operations = blocked_operations or []
+        self.send_json(
+            200,
+            {
+                "exitCode": exit_code,
+                "stdout": stdout,
+                "stderr": append_blocked_summary(stderr, blocked_operations),
+                "blockedOperations": blocked_operations,
+                "policySummary": {
+                    "policyCount": len(ACTIVE_POLICY["policies"]),
+                    "deniedPrefixCount": len(ACTIVE_POLICY["deniedPathPrefixes"]),
+                },
+                "mode": FUSE_STATE["mode"],
+            },
+        )
+
     def do_GET(self):
         if self.path == "/health":
             self.send_json(
@@ -466,47 +444,52 @@ class Handler(BaseHTTPRequestHandler):
             env["ARCH_WORKSPACE_ROOT"] = str(WORKSPACE_PATH)
             env["ARCH_BACKING_ROOT"] = str(BACKING_PATH)
 
-            completed = subprocess.run(
-                ["/usr/bin/bash", "--noprofile", "--norc", "-lc", payload["command"]],
-                cwd=str(cwd),
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=timeout_seconds,
-            )
+            try:
+                completed = subprocess.run(
+                    ["/usr/bin/bash", "--noprofile", "--norc", "-lc", payload["command"]],
+                    cwd=str(cwd),
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout_seconds,
+                )
+            except PermissionError as exc:
+                blocked_operations = drain_blocked_operations()
+                self.send_exec_result(
+                    exit_code=126,
+                    stderr=f"Sandbox denied access while starting command in {cwd}: {exc}",
+                    blocked_operations=blocked_operations,
+                )
+                return
             blocked_operations = drain_blocked_operations()
-            self.send_json(
-                200,
-                {
-                    "exitCode": completed.returncode,
-                    "stdout": completed.stdout,
-                    "stderr": completed.stderr,
-                    "blockedOperations": blocked_operations,
-                    "policySummary": {
-                        "policyCount": len(ACTIVE_POLICY["policies"]),
-                        "deniedPrefixCount": len(ACTIVE_POLICY["deniedPathPrefixes"]),
-                    },
-                    "mode": FUSE_STATE["mode"],
-                },
+            self.send_exec_result(
+                exit_code=completed.returncode,
+                stdout=completed.stdout,
+                stderr=completed.stderr,
+                blocked_operations=blocked_operations,
             )
         except subprocess.TimeoutExpired as exc:
             blocked_operations = drain_blocked_operations()
-            self.send_json(
-                200,
-                {
-                    "exitCode": 124,
-                    "stdout": exc.stdout or "",
-                    "stderr": (exc.stderr or "") + "\nCommand timed out.",
-                    "blockedOperations": blocked_operations,
-                    "policySummary": {
-                        "policyCount": len(ACTIVE_POLICY["policies"]),
-                        "deniedPrefixCount": len(ACTIVE_POLICY["deniedPathPrefixes"]),
-                    },
-                    "mode": FUSE_STATE["mode"],
-                },
+            self.send_exec_result(
+                exit_code=124,
+                stdout=exc.stdout or "",
+                stderr=(exc.stderr or "") + "\nCommand timed out.",
+                blocked_operations=blocked_operations,
+            )
+        except PermissionError as exc:
+            blocked_operations = drain_blocked_operations()
+            self.send_exec_result(
+                exit_code=126,
+                stderr=f"Sandbox denied filesystem access: {exc}",
+                blocked_operations=blocked_operations,
             )
         except Exception as exc:
-            self.send_json(400, {"ok": False, "error": str(exc), "mode": FUSE_STATE["mode"]})
+            blocked_operations = drain_blocked_operations()
+            self.send_exec_result(
+                exit_code=125,
+                stderr=f"Sandbox daemon error: {exc}",
+                blocked_operations=blocked_operations,
+            )
 
 
 if __name__ == "__main__":

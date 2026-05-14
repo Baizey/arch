@@ -9,13 +9,15 @@ class ShellTool(
 ) {
     @Tool(
         name = "shell",
-        value = ["""Execute a shell command inside the long-lived Linux sandbox container.
-Use Linux/POSIX commands relative to the mounted workspace.
-The current effective path policy snapshot is sent alongside every execution for the sandbox runtime to consume.
-Example: shell(command="ls -la", timeoutSeconds=30)"""]
+        value = ["""Execute a terminal command.
+You are executing from a sandboxed ubuntu environment but if your agent is being run from windows use windows paths.
+Example: cwd
+Example: ls -la
+Example: ls C:\\Repositories
+"""]
     )
     fun shell(
-        @P("Shell command to execute inside the sandbox container.")
+        @P("Shell command to execute")
         command: String,
         @P("Command timeout in seconds. Must be greater than 0.")
         timeoutSeconds: Int? = null
