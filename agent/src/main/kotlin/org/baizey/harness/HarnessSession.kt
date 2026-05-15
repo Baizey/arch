@@ -330,30 +330,40 @@ class HarnessSession private constructor(
         return "Context cleared."
     }
 
-    fun setToolFilterProfile(profile: ToolFilterProfile) {
+    fun setToolFilterProfile(profile: ToolFilterProfile, emitActivity: Boolean = true) {
         synchronized(lock) {
+            if (toolFilterProfile?.id == profile.id) {
+                return
+            }
             toolFilterProfile = profile
             toolFilterRevision++
             persistStateLocked()
         }
-        recordActivity(
-            type = HarnessActivityType.CONTROL,
-            title = "Tool filter switched to ${profile.name}",
-            detail = "Built-in tool availability will refresh on the next model turn."
-        )
+        if (emitActivity) {
+            recordActivity(
+                type = HarnessActivityType.CONTROL,
+                title = "Tool filter switched to ${profile.name}",
+                detail = "Built-in tool availability will refresh on the next model turn."
+            )
+        }
     }
 
-    fun setMcpToolFilterProfile(profile: McpToolFilterProfile) {
+    fun setMcpToolFilterProfile(profile: McpToolFilterProfile, emitActivity: Boolean = true) {
         synchronized(lock) {
+            if (mcpToolFilterProfile?.id == profile.id) {
+                return
+            }
             mcpToolFilterProfile = profile
             toolFilterRevision++
             persistStateLocked()
         }
-        recordActivity(
-            type = HarnessActivityType.CONTROL,
-            title = "MCP filter switched to ${profile.name}",
-            detail = "MCP tool availability will refresh on the next model turn."
-        )
+        if (emitActivity) {
+            recordActivity(
+                type = HarnessActivityType.CONTROL,
+                title = "MCP filter switched to ${profile.name}",
+                detail = "MCP tool availability will refresh on the next model turn."
+            )
+        }
     }
 
     fun setModel(model: String): String {

@@ -4,7 +4,6 @@ import org.baizey.runtime.SessionKind
 import org.baizey.runtime.SessionState
 import org.baizey.runtime.SessionStateStore
 import org.baizey.runtime.SessionStore
-import org.baizey.runtime.agentic.instance.SystemPrompt
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -146,6 +145,58 @@ class HarnessSessionPersistenceTest {
         assertEquals(SessionKind.SUB_AGENT, persisted!!.kind)
         assertEquals(rootSessionId.toString(), persisted.parentSessionId)
         assertEquals(rootSessionId.toString(), persisted.rootSessionId)
+    }
+
+    @Test
+    fun `does not duplicate tool filter activity when reapplying same profiles`() {
+        val controlPath = tempDir.resolve("control").resolve("session_store.json")
+        val recordsDir = tempDir.resolve("records")
+        val stateStore = SessionStateStore(recordsDir)
+        val sessionStore = SessionStore(controlPath, stateStore)
+        val sessionId = sessionStore.createSessionId()
+        val session = HarnessSession(
+            interactionPort = FakeInteractionPort(),
+            sessionStore = sessionStore,
+            sessionStateStore = stateStore,
+            sessionId = sessionId,
+            sandboxServiceFactory = { null }
+        ) { _, _, _, _, _, _ ->
+            FakeRuntime { "unused" }
+        }
+
+        val toolProfile = org.baizey.runtime.ToolFilterProfileStore.everythingProfile()
+        val mcpProfile = org.baizey.runtime.McpToolFilterProfileStore.everythingProfile()
+
+        session.setToolFilterProfile(toolProfile, emitActivity = false)
+        session.setMcpToolFilterProfile(mcpProfile, emitActivity = false)
+        session.setToolFilterProfile(toolProfile, emitActivity = false)
+        session.setMcpToolFilterProfile(mcpProfile, emitActivity = false)
+
+        val snapshot = session.snapshot()
+        assertEquals(0, snapshot.activity.count { it.title.startsWith("Tool filter switched to ") })
+        assertEquals(0, snapshot.activity.count { it.title.startsWith("MCP filter switched to ") })
+    }
+
+    @Test
+    fun `deleting the active session falls back to another session`() {
+        val controlPath = tempDir.resolve("control").resolve("session_store.json")
+        val recordsDir = tempDir.resolve("records")
+        val stateStore = SessionStateStore(recordsDir)
+        val sessionStore = SessionStore(controlPath, stateStore)
+        val firstSessionId = sessionStore.createSessionId()
+        val secondSessionId = sessionStore.createSessionId()
+        val manager = org.baizey.web.ActiveHarnessSessionManager(
+            interactionPort = FakeInteractionPort(),
+            sessionStateStore = stateStore,
+            sessionStore = sessionStore,
+            sandboxServiceFactory = { null }
+        ) { _, _, _, _, _, _ ->
+            FakeRuntime { prompt -> "answer: $prompt" }
+        }
+
+        manager.selectSession(firstSessionId.toString())
+        assertTrue(manager.deleteSession(firstSessionId.toString()))
+        assertEquals(secondSessionId.toString(), manager.snapshot().activeSessionId)
     }
 
     private fun waitUntil(condition: () -> Boolean) {

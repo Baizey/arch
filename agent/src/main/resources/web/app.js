@@ -390,6 +390,9 @@ function renderSessionList() {
 }
 
 function createSessionListButton(session, isSubAgent = false) {
+  const row = document.createElement("div");
+  row.className = "session-list-row";
+
   const button = document.createElement("button");
   button.type = "button";
   button.className = "session-list-item";
@@ -409,7 +412,20 @@ function createSessionListButton(session, isSubAgent = false) {
   button.addEventListener("click", async () => {
     await activateSession(session.sessionId);
   });
-  return button;
+
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.className = "session-delete-button ghost";
+  deleteButton.textContent = "Delete";
+  deleteButton.disabled = isSessionMutationLocked() || session.running;
+  deleteButton.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await deleteSession(session.sessionId);
+  });
+
+  row.append(button, deleteButton);
+  return row;
 }
 
 function buildSessionListTree(session, sessions, renderedSessionIds) {
@@ -2392,6 +2408,29 @@ async function activateSession(sessionId) {
     await loadState();
   } catch (error) {
     setComposerStatus("error", error.message || "Unable to select session.");
+  } finally {
+    isMutatingSession = false;
+    renderSessionList();
+  }
+}
+
+async function deleteSession(sessionId) {
+  if (isSessionMutationLocked()) {
+    return;
+  }
+
+  isMutatingSession = true;
+  renderSessionList();
+
+  try {
+    const response = await requestJson(`/api/sessions/${sessionId}/delete`, {
+      method: HTTP_METHOD.POST,
+      body: JSON.stringify({}),
+    });
+    setComposerStatus("success", response.message || "Session deleted.", 1800);
+    await loadState();
+  } catch (error) {
+    setComposerStatus("error", error.message || "Unable to delete session.");
   } finally {
     isMutatingSession = false;
     renderSessionList();

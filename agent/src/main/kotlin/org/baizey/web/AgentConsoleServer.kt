@@ -130,6 +130,19 @@ internal class AgentConsoleServer(
                 )
             )
         }
+        post("/api/sessions/{id}/delete") { exchange, pathParams ->
+            val deletingCurrent = sessionManager.current().sessionId().toString() == pathParams.getValue("id")
+            val ok = sessionManager.deleteSession(pathParams.getValue("id"))
+            if (ok && deletingCurrent) {
+                applyActiveProfiles()
+            }
+            exchange.respondJson(
+                actionJson(
+                    ok = ok,
+                    message = if (ok) null else "Unable to delete that session."
+                )
+            )
+        }
         post("/api/filter-profiles/select") { exchange, _ ->
             val body = exchange.readJsonObject()
             val ok = filterProfiles.selectProfile(body.string("profileId").orEmpty())
@@ -416,7 +429,7 @@ internal class AgentConsoleServer(
     }
 
     private fun applyActiveProfiles() {
-        sessionManager.current().setToolFilterProfile(toolFilterProfiles.activeProfile())
-        sessionManager.current().setMcpToolFilterProfile(mcpToolFilterProfiles.activeProfile())
+        sessionManager.current().setToolFilterProfile(toolFilterProfiles.activeProfile(), emitActivity = false)
+        sessionManager.current().setMcpToolFilterProfile(mcpToolFilterProfiles.activeProfile(), emitActivity = false)
     }
 }

@@ -98,6 +98,25 @@ class SessionStoreTest {
         assertEquals(rootSessionId.toString(), childSubAgentState.rootSessionId)
     }
 
+    @Test
+    fun `deletes session tree and clears active selection`() {
+        val recordsDir = tempDir.resolve("records")
+        val controlPath = tempDir.resolve("control").resolve("session_store.json")
+        val stateStore = SessionStateStore(recordsDir)
+        val store = SessionStore(controlPath, stateStore)
+
+        val rootSessionId = store.createSessionId()
+        val childSessionId = store.createSessionId(
+            kind = SessionKind.SUB_AGENT,
+            parentSessionId = rootSessionId.toString()
+        )
+
+        assertEquals(true, store.deleteSession(rootSessionId.toString()))
+        assertEquals(null, store.selectedSessionId())
+        assertEquals(null, stateStore.load(rootSessionId))
+        assertEquals(null, stateStore.load(childSessionId))
+    }
+
     private fun emptySnapshot(messageCount: Int = 0): HarnessSnapshot {
         return HarnessSnapshot(
             running = false,

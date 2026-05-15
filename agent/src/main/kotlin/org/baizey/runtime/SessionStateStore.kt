@@ -5,7 +5,6 @@ import dev.langchain4j.data.message.ChatMessageDeserializer
 import dev.langchain4j.data.message.ChatMessageSerializer
 import dev.langchain4j.data.message.ChatMessage
 import dev.langchain4j.data.message.ChatMessageType
-import dev.langchain4j.data.message.SystemMessage
 import dev.langchain4j.data.message.ToolExecutionResultMessage
 import dev.langchain4j.data.message.UserMessage
 import dev.langchain4j.store.memory.chat.ChatMemoryStore
@@ -19,6 +18,7 @@ import org.baizey.utils.IO.toJson
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.UUID
+import java.util.Comparator
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createParentDirectories
 import kotlin.io.path.exists
@@ -190,6 +190,24 @@ class SessionStateStore(
                 )
             )
         )
+    }
+
+    fun deleteSessionTree(sessionId: UUID): Boolean {
+        val existing = load(sessionId) ?: return false
+        listSessions()
+            .filter { child -> child.parentSessionId == existing.sessionId }
+            .forEach { child -> deleteSessionTree(UUID.fromString(child.sessionId)) }
+
+        val dir = sessionDir(sessionId)
+        if (dir.notExists()) {
+            return false
+        }
+        Files.walk(dir).use { paths ->
+            paths.sorted(Comparator.reverseOrder()).forEach { path ->
+                Files.deleteIfExists(path)
+            }
+        }
+        return true
     }
 
     private fun statePath(sessionId: UUID): Path {

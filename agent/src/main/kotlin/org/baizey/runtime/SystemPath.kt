@@ -1,29 +1,31 @@
 package org.baizey.runtime
 
+import java.nio.file.Path
+
 object SystemPath {
     private val archRoot = AppConfig.storage.homeDirectory
 
-    // Not used yet, should be location for anything the bot would want as long-term:
-    // Examples are: planning, to-do list, or other 'mini' tools
-    val botDirArea = archRoot.resolve("bot_info_storage")
+    // Accessible by bot
+    // Can be copied and pasted big data from user, plans or other larger items needing temporary storage
+    val botDirArea: Path = archRoot.resolve("temp_storage")
 
-    // Stuff the bot should never have any access to edit
-    // It may be okay to allow reading, but never editing in any way
-    val disallowBotDir = archRoot.resolve("system")
+    // Area where the agent should never get access
+    // Can cause self-modification of constraints or straight up just break the system
+    val disallowBotDir: Path = archRoot.resolve("system")
     private val configDir = disallowBotDir.resolve("config")
-    val mcpConfigFile = configDir.resolve("mcp_config.json")
-    val policyFile = configDir.resolve("path_policy.json")
-    val shellPolicyFile = configDir.resolve("shell_policy.json")
-    val gitPolicyFile = configDir.resolve("git_policy.json")
-    val activityFilterProfilesFile = configDir.resolve("activity_filter_profiles.json")
-    val toolFilterProfilesFile = configDir.resolve("tool_filter_profiles.json")
-    val mcpToolFilterProfilesFile = configDir.resolve("mcp_tool_filter_profiles.json")
+    val mcpConfigFile: Path = configDir.resolve("mcp_config.json")
+    val policyFile: Path = configDir.resolve("path_policy.json")
+    val gitPolicyFile: Path = configDir.resolve("git_policy.json")
+    val activityFilterProfilesFile: Path = configDir.resolve("activity_filter_profiles.json")
+    val toolFilterProfilesFile: Path = configDir.resolve("tool_filter_profiles.json")
+    val mcpToolFilterProfilesFile: Path = configDir.resolve("mcp_tool_filter_profiles.json")
+
     private val sessionsDir = disallowBotDir.resolve("sessions")
     private val sessionControlDir = sessionsDir.resolve("control")
-    val sessionControlFile = sessionControlDir.resolve("session_store.json")
-    val sessionRecordsDir = sessionsDir.resolve("records")
+    val sessionControlFile: Path = sessionControlDir.resolve("session_store.json")
+    val sessionRecordsDir: Path = sessionsDir.resolve("records")
 
     private val logDir = disallowBotDir.resolve("logs")
-    val errorLogFile = logDir.resolve("errors.log")
-    val auditLogFile = logDir.resolve("audit.log")
+    val errorLogFile: Path = logDir.resolve("errors.log")
+    val auditLogFile: Path = logDir.resolve("audit.log")
 }

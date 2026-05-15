@@ -594,6 +594,13 @@ button:disabled {
   gap: 8px;
 }
 
+.session-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
 .session-children {
   display: grid;
   gap: 8px;
@@ -635,6 +642,12 @@ button:disabled {
 
 .session-list-item:disabled {
   opacity: 0.72;
+}
+
+.session-delete-button {
+  align-self: stretch;
+  min-width: 84px;
+  padding-inline: 12px;
 }
 
 .session-list-meta {

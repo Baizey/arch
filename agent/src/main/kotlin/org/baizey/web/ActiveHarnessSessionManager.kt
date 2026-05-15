@@ -19,6 +19,12 @@ internal class ActiveHarnessSessionManager(
     private val interactionPort: HarnessInteractionPort,
     private val sessionStateStore: SessionStateStore = SessionStateStore(),
     private val sessionStore: SessionStore = SessionStore(stateStore = sessionStateStore),
+    private val sandboxServiceFactory: (UserPathPolicyLogic) -> DockerSandboxService? = { pathPolicyLogic ->
+        DockerSandboxService(
+            config = AppConfig.sandbox,
+            pathPolicyLogic = pathPolicyLogic
+        ).also { it.start() }
+    },
     private val runtimeFactory: (AgenticInstanceContext, () -> Boolean, () -> List<ChatModelListener>, () -> Int, () -> ToolFilterProfile?, () -> McpToolFilterProfile?) -> HarnessRuntime
 ) {
     private val lock = Any()
@@ -61,6 +67,31 @@ internal class ActiveHarnessSessionManager(
         }
     }
 
+    fun deleteSession(sessionId: String): Boolean {
+        synchronized(lock) {
+            if (currentSession.snapshot().running && currentSession.sessionId().toString() == sessionId) {
+                return false
+            }
+
+            val normalized = runCatching { UUID.fromString(sessionId).toString() }.getOrNull() ?: return false
+            val wasCurrentSession = currentSession.sessionId().toString() == normalized
+            if (!sessionStore.deleteSession(normalized)) {
+                return false
+            }
+
+            if (wasCurrentSession) {
+                val replacementSessionId = sessionStore.snapshot().sessions.firstOrNull()?.sessionId
+                    ?.let(UUID::fromString)
+                    ?: sessionStore.createSessionId()
+                sessionStore.selectSession(replacementSessionId.toString())
+                val previous = currentSession
+                currentSession = buildSession(replacementSessionId)
+                previous.close()
+            }
+            return true
+        }
+    }
+
     fun close() {
         currentSession.close()
     }
@@ -71,12 +102,7 @@ internal class ActiveHarnessSessionManager(
             sessionStore = sessionStore,
             sessionStateStore = sessionStateStore,
             sessionId = sessionId,
-            sandboxServiceFactory = { pathPolicyLogic: UserPathPolicyLogic ->
-                DockerSandboxService(
-                    config = AppConfig.sandbox,
-                    pathPolicyLogic = pathPolicyLogic
-                ).also { it.start() }
-            },
+            sandboxServiceFactory = sandboxServiceFactory,
             runtimeFactory = runtimeFactory
         )
     }

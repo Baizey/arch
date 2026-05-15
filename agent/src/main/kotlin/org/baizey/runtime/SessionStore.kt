@@ -113,6 +113,22 @@ internal class SessionStore(
         }
     }
 
+    fun deleteSession(sessionId: String): Boolean {
+        synchronized(lock) {
+            val normalized = runCatching { UUID.fromString(sessionId).toString() }.getOrNull() ?: return false
+            val deletedSessionIds = sessionTreeIds(UUID.fromString(normalized))
+            val deleted = stateStore.deleteSessionTree(UUID.fromString(normalized))
+            if (!deleted) {
+                return false
+            }
+            if (activeSessionId != null && activeSessionId in deletedSessionIds) {
+                activeSessionId = null
+                updatePersistence()
+            }
+            return true
+        }
+    }
+
     fun reloadFromPersistence(): SessionStoreSnapshot {
         synchronized(lock) {
             controlPath.createParentDirectories()
@@ -134,6 +150,25 @@ internal class SessionStore(
     private fun updatePersistence() {
         controlPath.createParentDirectories()
         Files.writeString(controlPath, SessionStorePersistence(activeSessionId).toJson())
+    }
+
+    private fun sessionTreeIds(sessionId: UUID): Set<String> {
+        val rootId = sessionId.toString()
+        val childrenByParent = stateStore.listSessions()
+            .groupBy { child -> child.parentSessionId }
+
+        val collected = linkedSetOf(rootId)
+        val pending = ArrayDeque<String>()
+        pending += rootId
+        while (pending.isNotEmpty()) {
+            val parentId = pending.removeFirst()
+            childrenByParent[parentId].orEmpty().forEach { child ->
+                if (collected.add(child.sessionId)) {
+                    pending += child.sessionId
+                }
+            }
+        }
+        return collected
     }
 
     private fun SessionState.toSummary(): SessionSummary {
