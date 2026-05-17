@@ -233,7 +233,13 @@ button {
 
 .controls {
   display: grid;
-  grid-template-columns: repeat(5, minmax(150px, 1fr)) auto;
+  grid-template-columns:
+    minmax(300px, 1.7fr)
+    minmax(150px, 0.95fr)
+    minmax(140px, 1fr)
+    minmax(140px, 1fr)
+    minmax(140px, 1fr)
+    minmax(140px, 1fr);
   align-items: stretch;
   gap: 12px;
 }
@@ -562,26 +568,8 @@ button:disabled {
   gap: 24px;
 }
 
-.session-switcher {
-  display: grid;
-  gap: 12px;
-  width: min(420px, 100%);
-  min-width: 280px;
-  padding: 14px 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: rgba(10, 15, 26, 0.92);
-}
-
-.session-switcher-header {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.session-switcher-header strong {
-  color: var(--heading);
+.session-manager-card {
+  gap: 18px;
 }
 
 .session-list {
@@ -597,6 +585,13 @@ button:disabled {
 .session-list-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.session-row-actions {
+  display: grid;
+  grid-auto-flow: column;
   gap: 8px;
   align-items: stretch;
 }
@@ -647,6 +642,12 @@ button:disabled {
 .session-delete-button {
   align-self: stretch;
   min-width: 84px;
+  padding-inline: 12px;
+}
+
+.session-resume-button {
+  align-self: stretch;
+  min-width: 92px;
   padding-inline: 12px;
 }
 
@@ -1450,11 +1451,6 @@ h2 {
     align-items: start;
   }
 
-  .session-switcher {
-    width: 100%;
-    min-width: 0;
-  }
-
   .controls > button {
     grid-column: span 2;
   }
@@ -1547,12 +1543,12 @@ h2 {
     grid-auto-flow: row;
   }
 
-  .session-switcher-header {
-    width: 100%;
-  }
-
   .session-list {
     grid-template-columns: 1fr;
+  }
+
+  .session-row-actions {
+    grid-auto-flow: row;
   }
 
   .filter-editor-actions,

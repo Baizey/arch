@@ -25,7 +25,15 @@ class UserPathPolicyLogic(
     private val interactionPort: HarnessInteractionPort
 ) : PathPolicyLogic {
     private val activePolicies = mutableListOf<PathPolicy>()
+    private val accessibleBotDir = SystemPath.botDirArea.toAbsolutePath().normalize().toString()
     private val inaccessibleDir = SystemPath.disallowBotDir.toAbsolutePath().normalize().toString()
+    private val botStoragePolicy = PathPolicy(
+        pattern = accessibleBotDir,
+        accessTypes = FsAccessType.entries.toMutableList(),
+        lifetime = PolicyLifetime.FOREVER,
+        isAllowed = true,
+        reason = "bot storage"
+    )
 
     override fun inspectPath(rawFilePath: String): PathAccessInspection {
         val cleanPath = Path(rawFilePath).toAbsolutePath().normalize()
@@ -49,8 +57,9 @@ class UserPathPolicyLogic(
             appendLine("- Closest ancestor path match wins.")
             appendLine("- Paths not listed below are not pre-approved. Access if them if necessary.")
             appendLine("- Explicitly allowed without asking:")
+            appendLine("  - $accessibleBotDir: ${accessTypesLabel(FsAccessType.entries)} (bot storage)")
             if (explicitAllowPolicies.isEmpty()) {
-                appendLine("  - none")
+                appendLine("  - none beyond bot storage")
             } else {
                 explicitAllowPolicies.forEach { policy ->
                     appendLine("  - ${policy.pattern}: ${accessTypesLabel(policy.accessTypes)}${reasonSuffix(policy.reason)}")
@@ -77,7 +86,7 @@ class UserPathPolicyLogic(
 
     override fun snapshot(): PathPolicySnapshot {
         return PathPolicySnapshot(
-            policies = activePathPolicies(),
+            policies = listOf(botStoragePolicy.copy(accessTypes = botStoragePolicy.accessTypes.toMutableList())) + activePathPolicies(),
             deniedPathPrefixes = listOf(inaccessibleDir)
         )
     }
@@ -99,6 +108,20 @@ class UserPathPolicyLogic(
                     accessTypes = listOf(accessType)
                 ),
                 decisionSource = AuditLog.DecisionSource.SYSTEM_INACCESSIBLE_DIRECTORY
+            )
+        }
+
+        if (path.startsWith(accessibleBotDir)) {
+            return logAndReturn(
+                PathPolicyResult(
+                    pattern = accessibleBotDir,
+                    path = path,
+                    isAllowed = true,
+                    reason = "This directory is always accessible for bot storage",
+                    lifetime = PolicyLifetime.FOREVER,
+                    accessTypes = listOf(accessType)
+                ),
+                decisionSource = AuditLog.DecisionSource.ACTIVE_POLICY_MATCH
             )
         }
 
@@ -225,6 +248,15 @@ class UserPathPolicyLogic(
                 decision = PathAccessDecision.DENY,
                 pattern = inaccessibleDir,
                 reason = "This directory is inaccessible for you and has been denied by the user."
+            )
+        }
+
+        if (path.startsWith(accessibleBotDir)) {
+            return PathAccessDecisionEntry(
+                accessType = accessType,
+                decision = PathAccessDecision.ALLOW,
+                pattern = accessibleBotDir,
+                reason = "This directory is always accessible for bot storage."
             )
         }
 

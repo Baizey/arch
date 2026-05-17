@@ -55,8 +55,10 @@ const filtersViewEl = document.getElementById("filtersView");
 const toolFiltersViewEl = document.getElementById("toolFiltersView");
 const commandDeckEl = document.getElementById("commandDeck");
 const agentTabButtonEl = document.getElementById("agentTabButton");
+const sessionsTabButtonEl = document.getElementById("sessionsTabButton");
 const filtersTabButtonEl = document.getElementById("filtersTabButton");
 const toolFiltersTabButtonEl = document.getElementById("toolFiltersTabButton");
+const sessionsViewEl = document.getElementById("sessionsView");
 const filterProfileSelectEl = document.getElementById("filterProfileSelect");
 const toolFilterProfileSelectEl = document.getElementById("toolFilterProfileSelect");
 const mcpToolFilterProfileSelectEl = document.getElementById("mcpToolFilterProfileSelect");
@@ -258,12 +260,15 @@ function render() {
 
 function renderViewTabs() {
   const isAgentView = activeView === "agent";
+  const isSessionsView = activeView === "sessions";
   const isEventFiltersView = activeView === "filters";
   const isToolFiltersView = activeView === "tool-filters";
   agentTabButtonEl.setAttribute("aria-selected", String(isAgentView));
+  sessionsTabButtonEl.setAttribute("aria-selected", String(isSessionsView));
   filtersTabButtonEl.setAttribute("aria-selected", String(isEventFiltersView));
   toolFiltersTabButtonEl.setAttribute("aria-selected", String(isToolFiltersView));
   agentViewEl.hidden = !isAgentView;
+  sessionsViewEl.hidden = !isSessionsView;
   filtersViewEl.hidden = !isEventFiltersView;
   toolFiltersViewEl.hidden = !isToolFiltersView;
   commandDeckEl.hidden = !isAgentView;
@@ -334,6 +339,10 @@ function renderControls() {
 
 function renderSummary(feedItems) {
   const session = latestState.session;
+  const currentSession = getCurrentSessionSummary();
+  const currentSessionLabel = currentSession
+    ? currentSession.label || formatSessionLabel(currentSession.sessionId)
+    : "Active session";
   const askCount = latestState.pendingAskUsers.length;
   const permissionCount = latestState.pendingPermissions.length;
   const queuedMessageCount = latestState.session.pendingMessages.length;
@@ -341,27 +350,30 @@ function renderSummary(feedItems) {
 
   if (pendingCount > 0) {
     statusHeadlineEl.textContent = "Input required";
+    setOptionalText(statusSummaryEl, currentSessionLabel);
     return;
   }
 
   if (session.running) {
     statusHeadlineEl.textContent = "Agent working";
+    setOptionalText(statusSummaryEl, currentSessionLabel);
     return;
   }
 
   if (queuedMessageCount > 0) {
     statusHeadlineEl.textContent = "Queued messages";
+    setOptionalText(statusSummaryEl, currentSessionLabel);
     return;
   }
 
   if (feedItems.length > 0) {
     statusHeadlineEl.textContent = "Session idle";
-    setOptionalText(statusSummaryEl, "");
+    setOptionalText(statusSummaryEl, currentSessionLabel);
     return;
   }
 
   statusHeadlineEl.textContent = "Ready";
-  setOptionalText(statusSummaryEl, "");
+  setOptionalText(statusSummaryEl, currentSessionLabel);
 }
 
 function renderSessionList() {
@@ -393,13 +405,11 @@ function createSessionListButton(session, isSubAgent = false) {
   const row = document.createElement("div");
   row.className = "session-list-row";
 
-  const button = document.createElement("button");
-  button.type = "button";
+  const button = document.createElement("div");
   button.className = "session-list-item";
   button.dataset.state = resolveSessionState(session);
   button.dataset.active = String(session.sessionId === latestState.currentSessionId);
   button.dataset.kind = session.kind;
-  button.disabled = isSessionMutationLocked() || session.sessionId === latestState.currentSessionId;
 
   const label = document.createElement("strong");
   label.textContent = session.label || formatSessionLabel(session.sessionId);
@@ -409,8 +419,17 @@ function createSessionListButton(session, isSubAgent = false) {
   meta.textContent = formatSessionMeta(session, isSubAgent);
 
   button.append(label, meta);
-  button.addEventListener("click", async () => {
-    await activateSession(session.sessionId);
+
+  const actions = document.createElement("div");
+  actions.className = "session-row-actions";
+
+  const resumeButton = document.createElement("button");
+  resumeButton.type = "button";
+  resumeButton.className = "session-resume-button";
+  resumeButton.textContent = session.sessionId === latestState.currentSessionId ? "Current" : "Resume";
+  resumeButton.disabled = isSessionMutationLocked() || session.sessionId === latestState.currentSessionId;
+  resumeButton.addEventListener("click", async () => {
+    await activateSession(session.sessionId, { openAgentView: true });
   });
 
   const deleteButton = document.createElement("button");
@@ -424,7 +443,8 @@ function createSessionListButton(session, isSubAgent = false) {
     await deleteSession(session.sessionId);
   });
 
-  row.append(button, deleteButton);
+  actions.append(resumeButton, deleteButton);
+  row.append(button, actions);
   return row;
 }
 
@@ -1315,6 +1335,11 @@ async function submitMessage() {
 
 agentTabButtonEl.addEventListener("click", () => {
   activeView = "agent";
+  render();
+});
+
+sessionsTabButtonEl.addEventListener("click", () => {
+  activeView = "sessions";
   render();
 });
 
@@ -2374,6 +2399,7 @@ async function createSession() {
   }
 
   isMutatingSession = true;
+  renderControls();
   renderSessionList();
 
   try {
@@ -2387,16 +2413,18 @@ async function createSession() {
     setComposerStatus("error", error.message || "Unable to create session.");
   } finally {
     isMutatingSession = false;
+    renderControls();
     renderSessionList();
   }
 }
 
-async function activateSession(sessionId) {
+async function activateSession(sessionId, options = {}) {
   if (isSessionMutationLocked()) {
     return;
   }
 
   isMutatingSession = true;
+  renderControls();
   renderSessionList();
 
   try {
@@ -2404,12 +2432,16 @@ async function activateSession(sessionId) {
       method: HTTP_METHOD.POST,
       body: JSON.stringify({}),
     });
+    if (options.openAgentView) {
+      activeView = "agent";
+    }
     setComposerStatus("success", response.message || "Session selected.", 1800);
     await loadState();
   } catch (error) {
     setComposerStatus("error", error.message || "Unable to select session.");
   } finally {
     isMutatingSession = false;
+    renderControls();
     renderSessionList();
   }
 }
@@ -2420,6 +2452,7 @@ async function deleteSession(sessionId) {
   }
 
   isMutatingSession = true;
+  renderControls();
   renderSessionList();
 
   try {
@@ -2433,6 +2466,7 @@ async function deleteSession(sessionId) {
     setComposerStatus("error", error.message || "Unable to delete session.");
   } finally {
     isMutatingSession = false;
+    renderControls();
     renderSessionList();
   }
 }

@@ -7,7 +7,8 @@ object SystemPath {
 
     // Accessible by bot
     // Can be copied and pasted big data from user, plans or other larger items needing temporary storage
-    val botDirArea: Path = archRoot.resolve("temp_storage")
+    val botDirArea: Path = archRoot.resolve("storage")
+    val botTmpDir: Path = botDirArea.resolve("tmp")
 
     // Area where the agent should never get access
     // Can cause self-modification of constraints or straight up just break the system

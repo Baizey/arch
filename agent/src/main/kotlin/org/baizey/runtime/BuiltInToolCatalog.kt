@@ -59,6 +59,7 @@ object BuiltInToolCatalog {
         BuiltInToolDescriptor("move_or_copy_path", "move_or_copy_path", "fs", "fs-move", "Move or Copy Path", "Move or copy a file or directory."),
         BuiltInToolDescriptor("delete_path", "delete_path", "fs", "fs-delete", "Delete Path", "Delete a file or directory."),
         BuiltInToolDescriptor("shell", "shell", "sandbox", "sandbox-shell", "Shell", "Execute a shell command inside the sandbox container."),
+        BuiltInToolDescriptor("execute_code", "execute_code", "sandbox", "sandbox-shell", "Execute Code", "Write code to a temporary script file, run it in the sandbox, then delete it."),
         BuiltInToolDescriptor("search_web", "search_web", "web", "web-search", "Search Web", "Search the public web for candidate pages."),
         BuiltInToolDescriptor("fetch_website", "fetch_website", "web", "web-fetch", "Fetch Website", "Fetch and read website content."),
         BuiltInToolDescriptor("git_status", "git_status", "git", "git-read", "Git Status", "Inspect repository status."),

@@ -13,6 +13,7 @@ import org.baizey.harness.tools.fs.InspectPathAccessTool
 import org.baizey.harness.tools.fs.ReadFileTool
 import org.baizey.harness.tools.fs.SearchFilesTool
 import org.baizey.harness.tools.fs.WriteFileTool
+import org.baizey.harness.tools.sandbox.ExecuteCodeTool
 import org.baizey.harness.tools.web.FetchWebsiteTool
 import org.baizey.runtime.ToolFilterProfileStore
 import org.baizey.runtime.agentic.instance.AgenticInstanceContext
@@ -134,6 +135,16 @@ class ToolParameterNamesTest {
             specification.description()
         )
         assertEquals(listOf("path", "accessType"), specification.parameters().properties().keys.toList())
+    }
+
+    @Test
+    fun `execute code method preserves parameter names for tool schema reflection`() {
+        val names = ExecuteCodeTool::class.java.methods
+            .first { it.name == "executeCode" }
+            .parameters
+            .map { it.name }
+
+        assertEquals(listOf("code", "language", "timeoutSeconds"), names)
     }
 
     @Test

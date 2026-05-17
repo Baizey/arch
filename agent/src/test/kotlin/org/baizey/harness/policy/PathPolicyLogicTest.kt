@@ -6,6 +6,7 @@ import org.baizey.harness.PermissionDecision
 import org.baizey.harness.PermissionRequest
 import org.baizey.harness.policy.path.FsAccessType
 import org.baizey.harness.policy.shared.PolicyLifetime
+import org.baizey.runtime.SystemPath
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -60,6 +61,28 @@ class PathPolicyLogicTest {
 
         val expectedScopes = buildExpectedScopes(file.toAbsolutePath().normalize())
         assertEquals(expectedScopes, interactionPort.requests.single().scopeOptions)
+    }
+
+    @Test
+    fun `bot storage directory is always allowed without prompting`() {
+        val file = SystemPath.botTmpDir.resolve("policy-test.py").toAbsolutePath().normalize()
+
+        val result = tool.evaluate(file.toString(), FsAccessType.WRITE)
+
+        assertTrue(result.isAllowed, result.toString())
+        assertEquals(SystemPath.botDirArea.toAbsolutePath().normalize().toString(), result.pattern)
+        assertEquals(0, interactionPort.requests.size)
+    }
+
+    @Test
+    fun `snapshot includes built in bot storage policy`() {
+        val snapshot = tool.snapshot()
+        val botDir = SystemPath.botDirArea.toAbsolutePath().normalize().toString()
+        val policy = snapshot.policies.firstOrNull { it.pattern == botDir }
+
+        assertTrue(policy != null, snapshot.policies.toString())
+        assertTrue(policy!!.isAllowed, policy.toString())
+        assertEquals(FsAccessType.entries.toList(), policy.accessTypes)
     }
 
     private fun buildExpectedScopes(path: Path): List<String> {

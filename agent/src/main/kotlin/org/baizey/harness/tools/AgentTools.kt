@@ -2,7 +2,7 @@ package org.baizey.harness.tools
 
 import org.baizey.harness.tools.git.GitTools
 import org.baizey.harness.tools.fs.FsTools
-import org.baizey.harness.tools.sandbox.ShellTool
+import org.baizey.harness.tools.sandbox.SandboxTools
 import org.baizey.harness.tools.web.WebTools
 import org.baizey.runtime.BuiltInToolCatalog
 import org.baizey.runtime.ToolFilterProfile
@@ -22,10 +22,7 @@ object AgentTools {
             )
             addAll(WebTools.create(agentContext).filterBuiltInTools(agentContext.tools.profile))
             addAll(GitTools.create(agentContext.policies.git).filterBuiltInTools(agentContext.tools.profile))
-            agentContext.tools.sandbox
-                ?.let(::ShellTool)
-                ?.takeIf { tool -> tool.isBuiltInToolEnabled(agentContext.tools.profile) }
-                ?.let(::add)
+            addAll(SandboxTools.create(agentContext.tools.sandbox!!).filterBuiltInTools(agentContext.tools.profile))
         }
     }
 
