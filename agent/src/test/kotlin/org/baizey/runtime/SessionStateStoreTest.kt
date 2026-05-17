@@ -4,10 +4,12 @@ import dev.langchain4j.data.message.AiMessage
 import dev.langchain4j.data.message.UserMessage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.util.UUID
+import kotlin.io.path.exists
 
 class SessionStateStoreTest {
     @TempDir
@@ -53,6 +55,40 @@ class SessionStateStoreTest {
         assertEquals("Summarize these search results for an agent.", persisted.snapshot.messages.first().text)
         assertEquals("Use the official release notes page.", persisted.snapshot.messages.last().text)
         assertEquals("Inspecting the fetched pages.", persisted.snapshot.activity.single().detail)
+    }
+
+    @Test
+    fun `persists simple transcript for sub-agent session`() {
+        val stateStore = SessionStateStore(tempDir.resolve("records"))
+        val parentSessionId = UUID.randomUUID()
+        stateStore.save(
+            SessionState(
+                sessionId = parentSessionId.toString(),
+                kind = SessionKind.ROOT,
+                updatedAtMs = 1,
+                systemPrompt = "parent prompt",
+                snapshot = emptySnapshot()
+            )
+        )
+
+        val childSessionId = stateStore.createSubAgentSession(
+            parentSessionId = parentSessionId,
+            systemPrompt = "child prompt"
+        )
+
+        stateStore.persistSimpleTranscript(
+            sessionId = childSessionId,
+            selectedModelId = "qwen3.6:8b",
+            modelLabel = "summary model",
+            userMessage = "Summarize banana search results.",
+            assistantMessage = "Bananas are yellow."
+        )
+
+        val persisted = stateStore.load(childSessionId)
+        assertNotNull(persisted)
+        assertEquals("Summarize banana search results.", persisted!!.snapshot.messages.first().text)
+        assertEquals("Bananas are yellow.", persisted.snapshot.messages.last().text)
+        assertTrue(tempDir.resolve("records").resolve(childSessionId.toString()).resolve("chat_memory.json").exists())
     }
 
     private fun emptySnapshot() = org.baizey.harness.HarnessSnapshot(

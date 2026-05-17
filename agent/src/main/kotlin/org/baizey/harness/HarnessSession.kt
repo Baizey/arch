@@ -160,7 +160,7 @@ class HarnessSession private constructor(
         core = CoreContext(
             sessionId = dependencies.sessionId,
             sessionStateStore = dependencies.sessionStateStore,
-            sessionParentId = null,
+            sessionParentId = parentSessionId?.let(UUID::fromString),
             systemPrompt = restoredState?.systemPrompt.orEmpty(),
             type = ProviderType.OLLAMA,
             modelName = "unselected",

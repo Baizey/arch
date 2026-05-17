@@ -119,10 +119,12 @@ internal class CurrentModelContentSummarizer(
         while (response.isNullOrBlank() || response == "null") {
             response = agent.chat("Please provide your response, or continue to ponder")
         }
-        parentContext.core.sessionStateStore.persistSnapshotFromChatMemory(
+        parentContext.core.sessionStateStore.persistSimpleTranscript(
             sessionId = agent.sessionId,
             selectedModelId = ModelSelection.BEST_SMALL,
-            modelLabel = agent.displayName()
+            modelLabel = agent.displayName(),
+            userMessage = prompt,
+            assistantMessage = response
         )
         return response
     }
@@ -151,7 +153,8 @@ Include relevant URLs when they materially help the next step."""
                 ),
                 policies = policies,
                 tools = ToolContext(
-                    profile = ToolFilterProfileStore.nothingProfile()
+                    profile = ToolFilterProfileStore.nothingProfile(),
+                    sandbox = parentContext.tools.sandbox
                 )
             )
         )

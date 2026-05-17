@@ -109,6 +109,27 @@ class SessionStateStore(
         Files.writeString(path, ChatMessageSerializer.messagesToJson(messages))
     }
 
+    fun persistSimpleTranscript(
+        sessionId: UUID,
+        selectedModelId: String,
+        modelLabel: String,
+        userMessage: String,
+        assistantMessage: String
+    ) {
+        writeChatMemory(
+            sessionId,
+            listOf(
+                UserMessage.userMessage(userMessage),
+                AiMessage.aiMessage(assistantMessage)
+            )
+        )
+        persistSnapshotFromChatMemory(
+            sessionId = sessionId,
+            selectedModelId = selectedModelId,
+            modelLabel = modelLabel
+        )
+    }
+
     fun persistSnapshotFromChatMemory(sessionId: UUID, selectedModelId: String, modelLabel: String) {
         val existing = load(sessionId) ?: return
         val messages = readChatMemory(sessionId)

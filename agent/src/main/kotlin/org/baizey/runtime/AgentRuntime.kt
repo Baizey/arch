@@ -61,7 +61,7 @@ class AgentRuntime(
             core = agentContext.core.withRuntimeOverrides(
                 modelName = ModelSelection.current.name,
                 type = ModelSelection.current.provider,
-                systemPrompt = SystemPrompt.text(agentContext.policies),
+                systemPrompt = resolvedSystemPrompt(),
                 listeners = listenersProvider(),
             ),
             tools = agentContext.tools.withRuntimeOverrides(
@@ -71,6 +71,15 @@ class AgentRuntime(
                 shouldInterruptAfterToolExecution = agentContext.tools.shouldInterruptAfterToolExecution
             )
         )
+    }
+
+    private fun resolvedSystemPrompt(): String {
+        val existingPrompt = agentContext.core.systemPrompt
+        return if (agentContext.core.sessionParentId != null && existingPrompt.isNotBlank()) {
+            existingPrompt
+        } else {
+            SystemPrompt.text(agentContext.policies)
+        }
     }
 
     private fun buildAgentInstance(context: AgenticInstanceContext): AgentInstance = agentInstanceFactory(context)

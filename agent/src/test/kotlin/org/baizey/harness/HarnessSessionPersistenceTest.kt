@@ -4,6 +4,9 @@ import org.baizey.runtime.SessionKind
 import org.baizey.runtime.SessionState
 import org.baizey.runtime.SessionStateStore
 import org.baizey.runtime.SessionStore
+import org.baizey.runtime.ToolFilterProfile
+import org.baizey.runtime.McpToolFilterProfile
+import org.baizey.runtime.agentic.instance.AgenticInstanceContext
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -11,6 +14,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
+import java.util.UUID
 
 class HarnessSessionPersistenceTest {
     @TempDir
@@ -145,6 +149,56 @@ class HarnessSessionPersistenceTest {
         assertEquals(SessionKind.SUB_AGENT, persisted!!.kind)
         assertEquals(rootSessionId.toString(), persisted.parentSessionId)
         assertEquals(rootSessionId.toString(), persisted.rootSessionId)
+    }
+
+    @Test
+    fun `restored sub agent session keeps its parent id and stored system prompt`() {
+        val controlPath = tempDir.resolve("control").resolve("session_store.json")
+        val recordsDir = tempDir.resolve("records")
+        val stateStore = SessionStateStore(recordsDir)
+        val sessionStore = SessionStore(controlPath, stateStore)
+        val rootSessionId = sessionStore.createSessionId()
+        val subAgentSessionId = sessionStore.createSessionId(
+            kind = SessionKind.SUB_AGENT,
+            parentSessionId = rootSessionId.toString()
+        )
+        stateStore.save(
+            SessionState(
+                sessionId = subAgentSessionId.toString(),
+                kind = SessionKind.SUB_AGENT,
+                parentSessionId = rootSessionId.toString(),
+                rootSessionId = rootSessionId.toString(),
+                updatedAtMs = 1,
+                systemPrompt = "sub-agent prompt",
+                snapshot = HarnessSnapshot(
+                    running = false,
+                    selectedModelId = "qwen3.6:27b",
+                    modelLabel = "fake",
+                    supportedModels = emptyList(),
+                    activeContextSize = 0,
+                    messages = emptyList(),
+                    activity = emptyList(),
+                    pendingMessages = emptyList()
+                )
+            )
+        )
+
+        var capturedParentId: UUID? = null
+        var capturedSystemPrompt: String? = null
+        HarnessSession(
+            interactionPort = FakeInteractionPort(),
+            sessionStore = sessionStore,
+            sessionStateStore = stateStore,
+            sessionId = subAgentSessionId,
+            sandboxServiceFactory = { null }
+        ) { agentContext, _, _, _, _, _ ->
+            capturedParentId = agentContext.core.sessionParentId
+            capturedSystemPrompt = agentContext.core.systemPrompt
+            FakeRuntime { "unused" }
+        }
+
+        assertEquals(rootSessionId, capturedParentId)
+        assertEquals("sub-agent prompt", capturedSystemPrompt)
     }
 
     @Test
